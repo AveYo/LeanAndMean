@@ -329,7 +329,8 @@ $D[0] for pinvoke definitions; numbers mostly calling flags or premade struct si
 
 
 
-### ToggleDefender - lean and mean snippet by AveYo, 2018-2021
+### ToggleDefender - lean and mean snippet by AveYo, 2020-2021
+[![preview](https://i.imgur.com/s9vfa6P.png)](ToggleDefender.bat)
 
 ##### ToggleDefender.bat (or .ps1) (or copy-paste in powershell console)
 ```bat

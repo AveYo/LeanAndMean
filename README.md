@@ -334,9 +334,9 @@ $D[0] for pinvoke definitions; numbers mostly calling flags or premade struct si
 
 ##### ToggleDefender.bat (or .ps1) (or copy-paste in powershell console)
 ```bat
-@(echo off% <#%) &title Toggle Defender, AveYo 2021-08-01
+@(echo off% <#%) &title Toggle Defender, AveYo 2021-08-02
 set "0=%~f0"&set 1=%*&powershell -nop -win 1 -c iex ([io.file]::ReadAllText($env:0)) &exit/b ||#>)[1]
-## Changelog: always-notify uac bpass for admin accounts removed [microsoft still not fully fixed it as proven by previous script]
+## Changelog: also toggle store, chredge smartscreen + pua; prevent ui lockdown; unblock exe in chredge 
 sp 'HKCU:\Volatile Environment' 'ToggleDefender' @'
 if ($(sc.exe qc windefend) -like '*TOGGLE*') {$TOGGLE=7;$KEEP=6;$A='Enable';$S='OFF'}else{$TOGGLE=6;$KEEP=7;$A='Disable';$S='ON'}
 
@@ -395,11 +395,31 @@ $wdp='HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender'
 
 ## Toggle Defender
 if ($env:1 -eq 7) {
+  ## enable notifications
   rp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender Security Center\Notifications' DisableNotifications -Force -ea 0
   rp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\UX Configuration' Notification_Suppress -Force -ea 0
   rp 'HKLM:\SOFTWARE\Microsoft\Windows Defender Security Center\Notifications' DisableNotifications -Force -ea 0
   rp 'HKLM:\SOFTWARE\Microsoft\Windows Defender\UX Configuration' Notification_Suppress -Force -ea 0
+  rp 'HKLM:\SOFTWARE\Microsoft\Windows Defender\UX Configuration' UILockdown -Force -ea 0
+  ## enable shell smartscreen and set to warn
   rp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' EnableSmartScreen -Force -ea 0
+  sp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' ShellSmartScreenLevel 'Warn' -Force -ea 0
+  ## enable store smartscreen and set to warn
+  gp Registry::HKEY_Users\S-1-5-21*\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost -ea 0 |% {
+    sp $_.PSPath 'EnableWebContentEvaluation' 1 -Type Dword -Force -ea 0
+    sp $_.PSPath 'PreventOverride' 0 -Type Dword -Force -ea 0
+  }
+  ## enable chredge smartscreen + pua
+  gp Registry::HKEY_Users\S-1-5-21*\SOFTWARE\Microsoft\Edge\SmartScreenEnabled -ea 0 |% {
+    sp $_.PSPath '(Default)' 1 -Type Dword -Force -ea 0
+  }
+  gp Registry::HKEY_Users\S-1-5-21*\SOFTWARE\Microsoft\Edge\SmartScreenPuaEnabled -ea 0 |% {
+    sp $_.PSPath '(Default)' 1 -Type Dword -Force -ea 0
+  }
+  ## enable legacy edge smartscreen
+  ri 'HKLM:\SOFTWARE\Policies\Microsoft\MicrosoftEdge\PhishingFilter' -Force -ea 0
+  ## enable av
+  rp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection' DisableRealtimeMonitoring -Force -ea 0
   rp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender' DisableAntiSpyware -Force -ea 0
   rp 'HKLM:\SOFTWARE\Microsoft\Windows Defender' DisableAntiSpyware -Force -ea 0
   sc.exe config windefend depend= RpcSs
@@ -407,11 +427,31 @@ if ($env:1 -eq 7) {
   kill -Force -Name MpCmdRun -ea 0
   start ($env:ProgramFiles+'\Windows Defender\MpCmdRun.exe') -Arg '-EnableService' -win 1
 } else {
+  ## disable notifications
   sp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender Security Center\Notifications' DisableNotifications 1 -Type Dword -ea 0
   sp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\UX Configuration' Notification_Suppress 1 -Type Dword -Force -ea 0
   sp 'HKLM:\SOFTWARE\Microsoft\Windows Defender Security Center\Notifications' DisableNotifications 1 -Type Dword -ea 0
   sp 'HKLM:\SOFTWARE\Microsoft\Windows Defender\UX Configuration' Notification_Suppress 1 -Type Dword -Force -ea 0
+  sp 'HKLM:\SOFTWARE\Microsoft\Windows Defender\UX Configuration' UILockdown 0 -Type Dword -Force -ea 0
+  ## disable shell smartscreen and set to warn
   sp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' EnableSmartScreen 0 -Type Dword -Force -ea 0
+  sp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' ShellSmartScreenLevel 'Warn' -Force -ea 0
+  ## disable store smartscreen and set to warn
+  gp Registry::HKEY_Users\S-1-5-21*\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost -ea 0 |% {
+    sp $_.PSPath 'EnableWebContentEvaluation' 0 -Type Dword -Force -ea 0
+    sp $_.PSPath 'PreventOverride' 0 -Type Dword -Force -ea 0
+  }
+  ## disable chredge smartscreen + pua
+  gp Registry::HKEY_Users\S-1-5-21*\SOFTWARE\Microsoft\Edge\SmartScreenEnabled -ea 0 |% {
+    sp $_.PSPath '(Default)' 0 -Type Dword -Force -ea 0
+  }
+  gp Registry::HKEY_Users\S-1-5-21*\SOFTWARE\Microsoft\Edge\SmartScreenPuaEnabled -ea 0 |% {
+    sp $_.PSPath '(Default)' 0 -Type Dword -Force -ea 0
+  }
+  ## disable legacy edge smartscreen
+  sp 'HKLM:\SOFTWARE\Policies\Microsoft\MicrosoftEdge\PhishingFilter' EnabledV9 0 -Type Dword -Force -ea 0
+  ## disable av
+  sp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection' DisableRealtimeMonitoring 1 -Type Dword -Force
   sp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender' DisableAntiSpyware 1 -Type Dword -Force -ea 0
   sp 'HKLM:\SOFTWARE\Microsoft\Windows Defender' DisableAntiSpyware 1 -Type Dword -Force -ea 0
   net1 stop windefend
@@ -423,20 +463,41 @@ if ($env:1 -eq 7) {
 }
 
 ## PERSONAL CONFIGURATION TWEAK - COMMENT OR UNCOMMENT #rp ENTRIES TO TWEAK OR REVERT
-#sp $wdp DisableRoutinelyTakingAction 1 -Type Dword -Force -ea 0                      ## Auto Actions off
-rp $wdp DisableRoutinelyTakingAction -Force -ea 0                                     ## Auto Actions ON [default]
-sp $wdp PUAProtection 1 -Type Dword -Force -ea 0                                      ## Potential Unwanted Apps ON
-#rp $wdp PUAProtection -Force -ea 0                                                   ## Potential Unwanted Apps off [default]
-sp ($wdp+'\MpEngine') MpCloudBlockLevel 2 -Type Dword -Force -ea 0                    ## Cloud blocking level HIGH
-#rp ($wdp+'\MpEngine') MpCloudBlockLevel -Force -ea 0                                 ## Cloud blocking level low [default]
-sp ($wdp+'\Spynet') SpyNetReporting 2 -Type Dword -Force -ea 0                        ## Cloud protection ADVANCED
-#rp ($wdp+'\Spynet') SpyNetReporting -Force -ea 0                                     ## Cloud protection basic [default]
-sp ($wdp+'\Spynet') SubmitSamplesConsent 0 -Type Dword -Force -ea 0                   ## Sample Submission ALWAYS-PROMPT
-#rp ($wdp+'\Spynet') SubmitSamplesConsent -Force -ea 0                                ## Sample Submission automatic [default]
-#sp ($wdp+'\Real-Time Protection') RealtimeScanDirection 1 -Type Dword -Force -ea 0   ## Scan incoming file only
-rp ($wdp+'\Real-Time Protection') RealtimeScanDirection -Force -ea 0                  ## Scan INCOMING and OUTGOING file [default]
+#sp $wdp DisableRoutinelyTakingAction 1 -Type Dword -Force -ea 0                        ## Auto Actions off
+rp $wdp DisableRoutinelyTakingAction -Force -ea 0                                       ## Auto Actions ON [default]
+
+sp ($wdp+'\MpEngine') MpCloudBlockLevel 2 -Type Dword -Force -ea 0                      ## Cloud blocking level HIGH
+#rp ($wdp+'\MpEngine') MpCloudBlockLevel -Force -ea 0                                   ## Cloud blocking level low [default]
+
+sp ($wdp+'\Spynet') SpyNetReporting 2 -Type Dword -Force -ea 0                          ## Cloud protection ADVANCED
+#rp ($wdp+'\Spynet') SpyNetReporting -Force -ea 0                                       ## Cloud protection basic [default]
+
+sp ($wdp+'\Spynet') SubmitSamplesConsent 0 -Type Dword -Force -ea 0                     ## Sample Submission ALWAYS-PROMPT
+#rp ($wdp+'\Spynet') SubmitSamplesConsent -Force -ea 0                                  ## Sample Submission automatic [default]
+
+#sp ($wdp+'\Real-Time Protection') RealtimeScanDirection 1 -Type Dword -Force -ea 0     ## Scan incoming file only
+rp ($wdp+'\Real-Time Protection') RealtimeScanDirection -Force -ea 0                    ## Scan INCOMING + OUTGOING file [default]
+
+#sp $wdp PUAProtection 1 -Type Dword -Force -ea 0                                       ## Potential Unwanted Apps on  [policy]
+rp $wdp PUAProtection -Force -ea 0                                                      ## Potential Unwanted Apps off [default]
+sp 'HKLM:\SOFTWARE\Microsoft\Windows Defender' PUAProtection 1 -Type Dword -Force -ea 0 ## Potential Unwanted Apps ON  [user]
+#rp 'HKLM:\SOFTWARE\Microsoft\Windows Defender' PUAProtection -Force -ea 0              ## Potential Unwanted Apps off [default]
+
+## even with "smartscreen" off you still need to unblock exe to download Firefox (sic) & other programs [F][F][S] microsoft!
+$LameEdgeExtBlockWithSmartScreenOff='HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExemptDomainFileTypePairsFromFileTypeDownloadWarnings'
+ni $LameEdgeExtBlockWithSmartScreenOff -Force -ea 0|out-null ## add other extensions following the example below (increment 1)
+sp $LameEdgeExtBlockWithSmartScreenOff '1' '{"file_extension": "exe", "domains": ["*"]}' -Force -ea 0  
 
 # done!
 '@ -Force -ea 0; $k=@();$k+=gp Registry::HKEY_Users\S-1-5-21*\Volatile* ToggleDefender -ea 0;iex($k[0].ToggleDefender)
 #-_-# hybrid script, can be pasted directly into powershell console
+```
+
+#### Changelog:  
+```bat
+2021.08.02:  
+- also toggle store, chredge smartscreen + pua  
+- prevent ui lockdown (if running the chm poc that btw still works)  
+- unblock exe in chredge - to download Firefox (sic)
+FFS microsoft why even call smartscreen smart at this point?
 ```

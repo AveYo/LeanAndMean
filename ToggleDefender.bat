@@ -1,6 +1,6 @@
 @(echo off% <#%) &title Toggle Defender, AveYo 2021-08-02
 set "0=%~f0"&set 1=%*&powershell -nop -win 1 -c iex ([io.file]::ReadAllText($env:0)) &exit/b ||#>)[1]
-## Changelog: also toggle store, chredge smartscreen + pua; prevent ui lockdown; unblock exe in chredge despite smartscreen off 
+## Changelog: also toggle store, chredge smartscreen + pua; prevent ui lockdown; unblock exe in chredge 
 sp 'HKCU:\Volatile Environment' 'ToggleDefender' @'
 if ($(sc.exe qc windefend) -like '*TOGGLE*') {$TOGGLE=7;$KEEP=6;$A='Enable';$S='OFF'}else{$TOGGLE=6;$KEEP=7;$A='Disable';$S='ON'}
 

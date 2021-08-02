@@ -1,6 +1,6 @@
-@(echo off% <#%) &title Toggle Defender, AveYo 2021-08-02
+@(echo off% <#%) &title Toggle Defender, AveYo 2021-08-03
 set "0=%~f0"&set 1=%*&powershell -nop -win 1 -c iex ([io.file]::ReadAllText($env:0)) &exit/b ||#>)[1]
-## Changelog: also toggle store, chredge smartscreen + pua; prevent ui lockdown; unblock exe in chredge 
+## Changelog: also toggle store, chredge smartscreen + pua; prevent ui lockdown (2); unblock exe in chredge 
 sp 'HKCU:\Volatile Environment' 'ToggleDefender' @'
 if ($(sc.exe qc windefend) -like '*TOGGLE*') {$TOGGLE=7;$KEEP=6;$A='Enable';$S='OFF'}else{$TOGGLE=6;$KEEP=7;$A='Disable';$S='ON'}
 
@@ -62,6 +62,7 @@ if ($env:1 -eq 7) {
   ## enable notifications
   rp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender Security Center\Notifications' DisableNotifications -Force -ea 0
   rp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\UX Configuration' Notification_Suppress -Force -ea 0
+  rp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\UX Configuration' UILockdown -Force -ea 0
   rp 'HKLM:\SOFTWARE\Microsoft\Windows Defender Security Center\Notifications' DisableNotifications -Force -ea 0
   rp 'HKLM:\SOFTWARE\Microsoft\Windows Defender\UX Configuration' Notification_Suppress -Force -ea 0
   rp 'HKLM:\SOFTWARE\Microsoft\Windows Defender\UX Configuration' UILockdown -Force -ea 0
@@ -94,6 +95,7 @@ if ($env:1 -eq 7) {
   ## disable notifications
   sp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender Security Center\Notifications' DisableNotifications 1 -Type Dword -ea 0
   sp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\UX Configuration' Notification_Suppress 1 -Type Dword -Force -ea 0
+  sp 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\UX Configuration' UILockdown 0 -Type Dword -Force -ea 0
   sp 'HKLM:\SOFTWARE\Microsoft\Windows Defender Security Center\Notifications' DisableNotifications 1 -Type Dword -ea 0
   sp 'HKLM:\SOFTWARE\Microsoft\Windows Defender\UX Configuration' Notification_Suppress 1 -Type Dword -Force -ea 0
   sp 'HKLM:\SOFTWARE\Microsoft\Windows Defender\UX Configuration' UILockdown 0 -Type Dword -Force -ea 0

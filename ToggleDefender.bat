@@ -1,31 +1,34 @@
-@(echo off% <#%) &title Toggle Defender, AveYo 2021-08-03
-set "0=%~f0"&set 1=%*&powershell -nop -win 1 -c iex ([io.file]::ReadAllText($env:0)) &exit/b ||#>)[1]
-## Changelog: also toggle store, chredge smartscreen + pua; prevent ui lockdown (2); unblock exe in chredge 
+@(set "0=%~f0"^)#) & powershell -win 1 -nop -c iex([io.file]::ReadAllText($env:0)) & exit /b
+
+## Toggle Defender, AveYo 2021.01.15
+## changed: comment personal configuration tweaks
+
 sp 'HKCU:\Volatile Environment' 'ToggleDefender' @'
 if ($(sc.exe qc windefend) -like '*TOGGLE*') {$TOGGLE=7;$KEEP=6;$A='Enable';$S='OFF'}else{$TOGGLE=6;$KEEP=7;$A='Disable';$S='ON'}
 
 ## Comment to hide dialog prompt with Yes, No, Cancel (6,7,2)
 if ($env:1 -ne 6 -and $env:1 -ne 7) {
-  $choice=(new-object -ComObject Wscript.Shell).Popup($A + ' Windows Defender?', 0, 'Defender is: ' + $S, 51)
+  $choice=(new-object -ComObject Wscript.Shell).Popup($A + ' Windows Defender?', 0, 'Defender is: ' + $S, 0x1033)
   if ($choice -eq 2) {break} elseif ($choice -eq 6) {$env:1=$TOGGLE} else {$env:1=$KEEP}
 }
 
 ## Without the dialog prompt above will toggle automatically
 if ($env:1 -ne 6 -and $env:1 -ne 7) { $env:1=$TOGGLE }
 
-## Comment to not relaunch systray icon
-$L="$env:ProgramFiles\Windows Defender\MSASCuiL.exe"; if (!(test-path $L)) {$L='SecurityHealthSystray'} ; start $L -win 1
+## Cascade elevation
+$u=0;$w=whoami /groups;if($w-like'*1-5-32-544*'){$u=1};if($w-like'*1-16-12288*'){$u=2};if($w-like'*1-16-16384*'){$u=3}
 
 ## Comment to not hide per-user toggle notifications
 $notif='HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.SecurityAndMaintenance'
 ni $notif -ea 0|out-null; ri $notif.replace('Settings','Current') -Recurse -Force -ea 0
 sp $notif Enabled 0 -Type Dword -Force -ea 0; if ($TOGGLE -eq 7) {rp $notif Enabled -Force -ea 0}
 
-## Cascade elevation
-$u=0;$w=whoami /groups;if($w-like'*1-5-32-544*'){$u=1};if($w-like'*1-16-12288*'){$u=2};if($w-like'*1-16-16384*'){$u=3}
+## Comment to not relaunch systray icon
+$L="$env:ProgramFiles\Windows Defender\MSASCuiL.exe"; if (!(test-path $L)) {$L='SecurityHealthSystray'}
+if ($u -eq 2) {start $L -win 1}
 
 ## Reload from volatile registry as needed
-$script='-nop -win 1 -c & {$AveYo='+"'`r`r"+' A LIMITED ACCOUNT PROTECTS YOU FROM UAC EXPLOITS '+"`r`r'"+';$env:1='+$env:1
+$script='-win 1 -nop -c & {$AveYo='+"'`r`r"+' A LIMITED ACCOUNT PROTECTS YOU FROM UAC EXPLOITS '+"`r`r'"+';$env:1='+$env:1
 $script+=';$k=@();$k+=gp Registry::HKEY_Users\S-1-5-21*\Volatile* ToggleDefender -ea 0;iex($k[0].ToggleDefender)}' 
 $cmd='powershell '+$script; $env:__COMPAT_LAYER='Installer' 
 
@@ -36,10 +39,10 @@ if ($u -lt 2) {
 
 ## 2: admin-user elevated: get ti/system via runasti lean and mean snippet [$window hide:0x0E080600 show:0x0E080610]
 if ($u -eq 2) {
-  $A=[AppDomain]::CurrentDomain."DefineDynamicAss`embly"(1,1)."DefineDynamicMod`ule"(1);$D=@();0..5|%{$D+=$A."DefineT`ype"('A'+$_,
-  1179913,[ValueType])} ;4,5|%{$D+=$D[$_]."MakeB`yRefType"()} ;$I=[Int32];$J="Int`Ptr";$P=$I.module.GetType("System.$J"); $F=@(0)
+  $A=[AppDomain]::CurrentDomain."DefineDynami`cAssembly"(1,1)."DefineDynami`cModule"(1);$D=@();0..5|%{$D+=$A."Defin`eType"('A'+$_,
+  1179913,[ValueType])} ;4,5|%{$D+=$D[$_]."MakeByR`efType"()} ;$I=[Int32];$J="Int`Ptr";$P=$I.module.GetType("System.$J"); $F=@(0)
   $F+=($P,$I,$P),($I,$I,$I,$I,$P,$D[1]),($I,$P,$P,$P,$I,$I,$I,$I,$I,$I,$I,$I,[Int16],[Int16],$P,$P,$P,$P),($D[3],$P),($P,$P,$I,$I)
-  $S=[String]; $9=$D[0]."DefinePInvokeMeth`od"('CreateProcess',"kernel`32",8214,1,$I,@($S,$S,$I,$I,$I,$I,$I,$S,$D[6],$D[7]),1,4)
+  $S=[String]; $9=$D[0]."DefinePInvok`eMethod"('CreateProcess',"kernel`32",8214,1,$I,@($S,$S,$I,$I,$I,$I,$I,$S,$D[6],$D[7]),1,4)
   1..5|%{$k=$_;$n=1;$F[$_]|%{$9=$D[$k]."DefineFie`ld"('f'+$n++,$_,6)}};$T=@();0..5|%{$T+=$D[$_]."CreateT`ype"();$Z=[uintptr]::size
   nv ('T'+$_)([Activator]::CreateInstance($T[$_]))}; $H=$I.module.GetType("System.Runtime.Interop`Services.Mar`shal");
   $WP=$H."GetMeth`od"("Write$J",[type[]]($J,$J)); $HG=$H."GetMeth`od"("AllocHG`lobal",[type[]]'int32'); $v=$HG.invoke($null,$Z)
@@ -124,36 +127,32 @@ if ($env:1 -eq 7) {
   sc.exe config windefend depend= RpcSs-TOGGLE
   kill -Name MpCmdRun -Force -ea 0
   start ($env:ProgramFiles+'\Windows Defender\MpCmdRun.exe') -Arg '-DisableService' -win 1
-  del ($env:ProgramData+'\Microsoft\Windows Defender\Scans\mpenginedb.db') -Force -ea 0           ## Commented = keep scan history
+  del ($env:ProgramData+'\Microsoft\Windows Defender\Scans\mpenginedb.db') -Force -ea 0  ## Commented = keep scan history
   del ($env:ProgramData+'\Microsoft\Windows Defender\Scans\History\Service') -Recurse -Force -ea 0
 }
 
-## PERSONAL CONFIGURATION TWEAK - COMMENT OR UNCOMMENT #rp ENTRIES TO TWEAK OR REVERT
-#sp $wdp DisableRoutinelyTakingAction 1 -Type Dword -Force -ea 0                        ## Auto Actions off
-rp $wdp DisableRoutinelyTakingAction -Force -ea 0                                       ## Auto Actions ON [default]
+## PERSONAL CONFIGURATION TWEAK - COMMENT OR UNCOMMENT ENTRIES TO TWEAK OR REVERT
+#sp $wdp DisableRoutinelyTakingAction 1 -Type Dword -Force -ea 0                         ## Auto Actions off
+#rp $wdp DisableRoutinelyTakingAction -Force -ea 0                                       ## Auto Actions ON [default]
 
-sp ($wdp+'\MpEngine') MpCloudBlockLevel 2 -Type Dword -Force -ea 0                      ## Cloud blocking level HIGH
-#rp ($wdp+'\MpEngine') MpCloudBlockLevel -Force -ea 0                                   ## Cloud blocking level low [default]
+#sp ($wdp+'\MpEngine') MpCloudBlockLevel 2 -Type Dword -Force -ea 0                      ## Cloud blocking level HIGH
+#rp ($wdp+'\MpEngine') MpCloudBlockLevel -Force -ea 0                                    ## Cloud blocking level low [default]
 
-sp ($wdp+'\Spynet') SpyNetReporting 2 -Type Dword -Force -ea 0                          ## Cloud protection ADVANCED
-#rp ($wdp+'\Spynet') SpyNetReporting -Force -ea 0                                       ## Cloud protection basic [default]
+#sp ($wdp+'\Spynet') SpyNetReporting 2 -Type Dword -Force -ea 0                          ## Cloud protection ADVANCED
+#rp ($wdp+'\Spynet') SpyNetReporting -Force -ea 0                                        ## Cloud protection basic [default]
 
-sp ($wdp+'\Spynet') SubmitSamplesConsent 0 -Type Dword -Force -ea 0                     ## Sample Submission ALWAYS-PROMPT
-#rp ($wdp+'\Spynet') SubmitSamplesConsent -Force -ea 0                                  ## Sample Submission automatic [default]
+#sp ($wdp+'\Spynet') SubmitSamplesConsent 0 -Type Dword -Force -ea 0                     ## Sample Submission ALWAYS-PROMPT
+#rp ($wdp+'\Spynet') SubmitSamplesConsent -Force -ea 0                                   ## Sample Submission automatic [default]
 
-#sp ($wdp+'\Real-Time Protection') RealtimeScanDirection 1 -Type Dword -Force -ea 0     ## Scan incoming file only
-rp ($wdp+'\Real-Time Protection') RealtimeScanDirection -Force -ea 0                    ## Scan INCOMING + OUTGOING file [default]
+#sp ($wdp+'\Real-Time Protection') RealtimeScanDirection 1 -Type Dword -Force -ea 0      ## Scan incoming file only
+#rp ($wdp+'\Real-Time Protection') RealtimeScanDirection -Force -ea 0                    ## Scan INCOMING, OUTGOING file [default]
 
-#sp $wdp PUAProtection 1 -Type Dword -Force -ea 0                                       ## Potential Unwanted Apps on  [policy]
-rp $wdp PUAProtection -Force -ea 0                                                      ## Potential Unwanted Apps off [default]
-sp 'HKLM:\SOFTWARE\Microsoft\Windows Defender' PUAProtection 1 -Type Dword -Force -ea 0 ## Potential Unwanted Apps ON  [user]
-#rp 'HKLM:\SOFTWARE\Microsoft\Windows Defender' PUAProtection -Force -ea 0              ## Potential Unwanted Apps off [default]
+#sp $wdp PUAProtection 1 -Type Dword -Force -ea 0                                        ## Potential Unwanted Apps on  [policy]
+#rp $wdp PUAProtection -Force -ea 0                                                      ## Potential Unwanted Apps off [default]
+#sp 'HKLM:\SOFTWARE\Microsoft\Windows Defender' PUAProtection 1 -Type Dword -Force -ea 0 ## Potential Unwanted Apps ON  [user]
+#rp 'HKLM:\SOFTWARE\Microsoft\Windows Defender' PUAProtection -Force -ea 0               ## Potential Unwanted Apps off [default]
 
-## even with "smartscreen" off you still need to unblock exe to download Firefox (sic) & other programs [F][F][S] microsoft!
-$LameEdgeExtBlockWithSmartScreenOff='HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExemptDomainFileTypePairsFromFileTypeDownloadWarnings'
-ni $LameEdgeExtBlockWithSmartScreenOff -Force -ea 0|out-null ## add other extensions following the example below (increment 1)
-sp $LameEdgeExtBlockWithSmartScreenOff '1' '{"file_extension": "exe", "domains": ["*"]}' -Force -ea 0  
-
+$env:1=$null
 # done!
 '@ -Force -ea 0; $k=@();$k+=gp Registry::HKEY_Users\S-1-5-21*\Volatile* ToggleDefender -ea 0;iex($k[0].ToggleDefender)
 #-_-# hybrid script, can be pasted directly into powershell console

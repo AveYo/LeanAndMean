@@ -15,6 +15,7 @@ Windows Registry Editor Version 5.00
 [-HKEY_CLASSES_ROOT\Microsoft.PowerShellScript.1\shell\setdesktopwallpaper]
 [-HKEY_CLASSES_ROOT\regfile\shell\setdesktopwallpaper]
 [-HKEY_CLASSES_ROOT\Folder\shell\setdesktopwallpaper]
+[-HKEY_CLASSES_ROOT\Directory\background\shell\extract]
 ; To remove entries, copy paste above into undo_RunAsTI.reg file, then import it
 
 ; RunAsTI on .bat
@@ -73,6 +74,16 @@ Windows Registry Editor Version 5.00
 "AppliesTo"="NOT System.ParsingName:=\"::{645FF040-5081-101B-9F08-00AA002F954E}\""
 [HKEY_CLASSES_ROOT\Folder\shell\setdesktopwallpaper\command]
 @="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..34|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
+
+; Open Powershell as trustedinstaller here
+[HKEY_CLASSES_ROOT\Directory\background\shell\extract]
+"MuiVerb"="Powershell as trustedinstaller"
+"HasLUAShield"=""
+"NoWorkingDirectory"=""
+"Position"="Middle"
+"Icon"="powershell.exe,0"
+[HKEY_CLASSES_ROOT\Directory\background\shell\extract\command]
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..34|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% cmd /c set \"1=%V\"& start powershell -nop -noe -c set-location -lit $env:1"
 
 ; RunAsTI function
 [HKEY_CLASSES_ROOT\RunAsTI]

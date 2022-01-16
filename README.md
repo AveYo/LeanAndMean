@@ -3,7 +3,7 @@
 RunAsTI - TrustedInstaller access rights while keeping HKCU loaded  
 ---  
 
-#### [RunAsTI.reg](RunAsTI.reg) context menu for folders, exe, msc, bat, cmd, reg - updated 2022.01.15  
+#### [RunAsTI.reg](RunAsTI.reg) context menu for folders, exe, msc, bat, cmd, reg - updated 2022.01.16  
 ```reg
 Windows Registry Editor Version 5.00
 
@@ -12,7 +12,7 @@ Windows Registry Editor Version 5.00
 ; - innovative HKCU load, no need for reg load / unload ping-pong; programs get the user profile
 ; - sets ownership privileges, high priority, and explorer support; get System if TI unavailable        
 ; - accepts special characters in paths for which default run as administrator fails
-; - show on the new 11 contextmenu via whitelisted id; 6-7 other available, fuck needing an app!  
+; - show on the new 11 contextmenu via whitelisted id; plenty other available, fuck needing an app!
 
 [-HKEY_CLASSES_ROOT\RunAsTI]
 [-HKEY_CLASSES_ROOT\batfile\shell\setdesktopwallpaper]
@@ -22,6 +22,7 @@ Windows Registry Editor Version 5.00
 [-HKEY_CLASSES_ROOT\Microsoft.PowerShellScript.1\shell\setdesktopwallpaper]
 [-HKEY_CLASSES_ROOT\regfile\shell\setdesktopwallpaper]
 [-HKEY_CLASSES_ROOT\Folder\shell\setdesktopwallpaper]
+[-HKEY_CLASSES_ROOT\Directory\background\shell\extract]
 ; To remove entries, copy paste above into undo_RunAsTI.reg file, then import it
 
 ; RunAsTI on .bat
@@ -81,6 +82,16 @@ Windows Registry Editor Version 5.00
 [HKEY_CLASSES_ROOT\Folder\shell\setdesktopwallpaper\command]
 @="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..34|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
 
+; Open Powershell as trustedinstaller here
+[HKEY_CLASSES_ROOT\Directory\background\shell\extract]
+"MuiVerb"="Powershell as trustedinstaller"
+"HasLUAShield"=""
+"NoWorkingDirectory"=""
+"Position"="Middle"
+"Icon"="powershell.exe,0"
+[HKEY_CLASSES_ROOT\Directory\background\shell\extract\command]
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..34|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% cmd /c set \"1=%V\"& start powershell -nop -noe -c set-location -lit $env:1"
+
 ; RunAsTI function
 [HKEY_CLASSES_ROOT\RunAsTI]
 "10"="function RunAsTI ($cmd,$arg) { $id='RunAsTI'; $key=\"Registry::HKU\\$(((whoami /user)-split' ')[-1])\\Volatile Environment\"; $code=@'"
@@ -111,8 +122,9 @@ Windows Registry Editor Version 5.00
 ;
 
 ```
+*2022.01.16: added `Open Powershell as trustedinstaller` entry on directory background*  
 
-#### [RunAsTI.bat](RunAsTI.bat) with ***Send to*** right-click menu entry to launch files and folders as TI - updated 2021.01.15  
+#### [RunAsTI.bat](RunAsTI.bat) with ***Send to*** right-click menu entry to launch files and folders as TI - updated 2022.01.15  
 ```bat
 @echo off& title RunAsTI - lean and mean snippet by AveYo, 2018-2022
 goto :nfo
@@ -489,7 +501,7 @@ ToggleDefender - without it re-enabling itself at the worst moment
 ```bat
 @(set "0=%~f0"^)#) & powershell -win 1 -nop -c iex([io.file]::ReadAllText($env:0)) & exit /b
 
-## Toggle Defender, AveYo 2021.01.15
+## Toggle Defender, AveYo 2022.01.15
 ## changed: comment personal configuration tweaks
 
 sp 'HKCU:\Volatile Environment' 'ToggleDefender' @'

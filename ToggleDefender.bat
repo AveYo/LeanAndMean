@@ -1,6 +1,6 @@
 @(set "0=%~f0"^)#) & powershell -win 1 -nop -c iex([io.file]::ReadAllText($env:0)) & exit /b
 
-## Toggle Defender, AveYo 2021.01.15
+## Toggle Defender, AveYo 2022.01.15
 ## changed: comment personal configuration tweaks
 
 sp 'HKCU:\Volatile Environment' 'ToggleDefender' @'

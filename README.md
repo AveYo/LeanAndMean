@@ -289,9 +289,9 @@ goto :nfo
     - add -list to show summary even when regedit fails; no low-level registry functions used        
     - can copy-paste snippet directly in powershell (admin) console then use it manually
     [USAGE]
-    - First copy-paste reg_own snippet before .ps1 script content
+    - First copy-paste reg_own snippet after .bat script content
     - Then call it anywhere (after elevation) to change registry security:
-      reg_own "key" -recurse Replace -user S-1-5-32-545 -owner S-1-1-0 -acc Allow -perm FullControl
+      call :reg_own "key" -recurse Replace -user S-1-5-32-545 -owner S-1-1-0 -acc Allow -perm FullControl
 :nfo
 
 :::::::::::::::::::::::::

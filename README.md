@@ -520,6 +520,8 @@ return
 ToggleDefender - without it re-enabling itself at the worst moment  
 ---  
 *supports Windows 7 - Windows 10 - Windows 11 release - Windows 11 dev*  
+February 14: Tamper Protection finally reliable - this script and more pesky stuff have been ignoring it just fine for 3 freaking years, about time!  
+So now it won't work unless you disable Tamper Protection manually from GUI - which **I strongly advise against**!  
 
 #### [ToggleDefender.bat](ToggleDefender.bat) or [ToggleDefender.ps1](ToggleDefender.ps1) or copy-paste code in powershell console  - updated 2022.01.15  
 ```bat

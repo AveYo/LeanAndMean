@@ -295,6 +295,15 @@ A: to silence lame powershell keyword-based event-log warnings that include the 
 A: $Ai instance of $T[i] type of $D[i] structure of $DF[i] fields; $D[4] StartupInfoEx, $D[3] StartupInfo, $D[2] lpAttribute..  
 $D[0] for pinvoke definitions; numbers mostly calling flags or premade struct sizes; check microsoft docs ^,^  
 
+*Q: is there a way to launch this RunAsTi.reg on Windows Terminal on a windows 11 machine?*  
+A: sure. create a new profile / clone / edit Windows PowerShell one, with the commandline:  
+```
+%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -win 1 -nop -c iex((10..39|%{(gp 'Registry::HKCR\RunAsTI' $_ -ea 0).$_})-join[char]10); # --% "C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.12.10211.0_x64__8wekyb3d8bbwe\wt.exe" -w 1 nt --title RunAsTI
+```
+can get the wt.exe path via powershell:  
+`(get-itemproperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\App Paths\wt.exe').'(default)'`  
+
+
 <img src="preview2.png">  
 
 Reg_Own - change registry security via scripts  

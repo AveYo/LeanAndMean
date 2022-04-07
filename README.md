@@ -14,7 +14,7 @@ Windows Registry Editor Version 5.00
 ; - sets ownership privileges, high priority, and explorer support; get System if TI unavailable        
 ; - accepts special characters in paths for which default run as administrator fails
 ; - show on the new 11 contextmenu via whitelisted id; plenty other available, fuck needing an app!
-; 2022.01.28: workaround for 11 release (22000) hindering explorer as TI; fix 7 args
+; 2022.04.07: PowerShell / Terminal here (if installed, use Terminal as TI, else use PowerShell as TI)
 
 [-HKEY_CLASSES_ROOT\RunAsTI]
 [-HKEY_CLASSES_ROOT\batfile\shell\setdesktopwallpaper]
@@ -33,7 +33,7 @@ Windows Registry Editor Version 5.00
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\batfile\shell\setdesktopwallpaper\command]
-@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..39|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
 
 ; RunAsTI on .cmd
 [HKEY_CLASSES_ROOT\cmdfile\shell\setdesktopwallpaper]
@@ -41,7 +41,7 @@ Windows Registry Editor Version 5.00
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\cmdfile\shell\setdesktopwallpaper\command]
-@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..39|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
 
 ; RunAsTI on .exe
 [HKEY_CLASSES_ROOT\exefile\shell\setdesktopwallpaper]
@@ -49,7 +49,7 @@ Windows Registry Editor Version 5.00
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\exefile\shell\setdesktopwallpaper\command]
-@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..39|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
 
 ; RunAsTI on .msc
 [HKEY_CLASSES_ROOT\mscfile\shell\setdesktopwallpaper]
@@ -57,7 +57,7 @@ Windows Registry Editor Version 5.00
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\mscfile\shell\setdesktopwallpaper\command]
-@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..39|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
 
 ; RunAsTI on .ps1
 [HKEY_CLASSES_ROOT\Microsoft.PowerShellScript.1\shell\setdesktopwallpaper]
@@ -65,7 +65,7 @@ Windows Registry Editor Version 5.00
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\Microsoft.PowerShellScript.1\shell\setdesktopwallpaper\command]
-@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..39|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% powershell -nop -c iex((gc -lit '%L')-join[char]10)"
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% powershell -nop -c iex((gc -lit '%L')-join[char]10)"
 
 ; RunAsTI on .reg
 [HKEY_CLASSES_ROOT\regfile\shell\setdesktopwallpaper]
@@ -73,7 +73,7 @@ Windows Registry Editor Version 5.00
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\regfile\shell\setdesktopwallpaper\command]
-@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..39|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% regedit /s \"%L\""
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% regedit /s \"%L\""
 
 ; RunAsTI on Folder
 [HKEY_CLASSES_ROOT\Folder\shell\setdesktopwallpaper]
@@ -82,17 +82,18 @@ Windows Registry Editor Version 5.00
 "Icon"="powershell.exe,0"
 "AppliesTo"="NOT System.ParsingName:=\"::{645FF040-5081-101B-9F08-00AA002F954E}\""
 [HKEY_CLASSES_ROOT\Folder\shell\setdesktopwallpaper\command]
-@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..39|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
 
-; Open Powershell as trustedinstaller here
+; Open Terminal or Powershell as trustedinstaller here - can spawn another terminal with: cmd /c $env:wt
 [HKEY_CLASSES_ROOT\Directory\background\shell\extract]
-"MuiVerb"="Powershell as trustedinstaller"
+"MuiVerb"="PowerShell / Terminal"
 "HasLUAShield"=""
 "NoWorkingDirectory"=""
+"Position"=-
 "Position"="Middle"
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\Directory\background\shell\extract\command]
-@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..39|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% cmd /c set \"1=%V\"& start powershell -nop -noe -c $host.ui.RawUI.WindowTitle=$(whoami); set-location -lit $env:1"
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% cmd /c pushd \"%V\" & start \"RunAsTI\" %%wt%%"
 
 ; RunAsTI function
 [HKEY_CLASSES_ROOT\RunAsTI]
@@ -117,20 +118,23 @@ Windows Registry Editor Version 5.00
 "28"=" function L ($1,$2,$3) {sp 'Registry::HKCR\\AppID\\{CDCBCFCA-3CDC-436f-A4E2-0E02075250C2}' 'RunAs' $3 -force -ea 0"
 "29"="  $b=[Text.Encoding]::Unicode.GetBytes(\"\\Registry\\User\\$1\"); F 'RegSetValueEx' @($2,'SymbolicLinkValue',0,6,[byte[]]$b,$b.Length)}"
 "30"=" function Q {[int](gwmi win32_process -filter 'name=\"explorer.exe\"'|?{$_.getownersid().sid-eq$NT}|select -last 1).ProcessId}"
-"31"=" $11bug=($((gwmi Win32_OperatingSystem).BuildNumber)-eq'22000')-AND(($cmd-eq'file:')-OR(test-path -lit $cmd -PathType Container))"
-"32"=" if ($11bug) {'System.Windows.Forms','Microsoft.VisualBasic' |% {$9=[Reflection.Assembly]::LoadWithPartialName(\"'$_\")}}"
-"33"=" if ($11bug) {$path='^(l)'+$($cmd -replace '([\\+\\^\\%\\~\\(\\)\\[\\]])','{$1}')+'{ENTER}'; $cmd='control.exe'; $arg='admintools'}"
-"34"=" L ($key-split'\\\\')[1] $LNK ''; $R=[diagnostics.process]::start($cmd,$arg); if ($R) {$R.PriorityClass='High'; $R.WaitForExit()}"
-"35"=" if ($11bug) {$w=0; do {if($w-gt40){break}; sleep -mi 250;$w++} until (Q); [Microsoft.VisualBasic.Interaction]::AppActivate($(Q))}"
-"36"=" if ($11bug) {[Windows.Forms.SendKeys]::SendWait($path)}; do {sleep 7} while(Q); L '.Default' $LNK 'Interactive User'"
-"37"="'@; $V='';'cmd','arg','id','key'|%{$V+=\"`n`$$_='$($(gv $_ -val)-replace\"'\",\"''\")';\"}; sp $key $id $($V,$code) -type 7 -force -ea 0"
-"38"=" start powershell -args \"-win 1 -nop -c `n$V `$env:R=(gi `$key -ea 0).getvalue(`$id)-join''; iex `$env:R\" -verb runas"
-"39"="}; $A=([environment]::commandline-split'-[-]%+ ?',2)[1]-split'\"([^\"]+)\"|([^ ]+)',2|%{$_.Trim(' \"')}; RunAsTI $A[1] $A[2]; # AveYo, 2022.01.28"
+"31"=" $env:wt='powershell'; dir \"$env:ProgramFiles\\WindowsApps\\Microsoft.WindowsTerminal*\\wt.exe\" -rec|% {$env:wt='\"'+$_.FullName+'\" \"-d .\"'}"
+"32"=" $11bug=($((gwmi Win32_OperatingSystem).BuildNumber)-eq'22000')-AND(($cmd-eq'file:')-OR(test-path -lit $cmd -PathType Container))"
+"33"=" if ($11bug) {'System.Windows.Forms','Microsoft.VisualBasic' |% {$9=[Reflection.Assembly]::LoadWithPartialName(\"'$_\")}}"
+"34"=" if ($11bug) {$path='^(l)'+$($cmd -replace '([\\+\\^\\%\\~\\(\\)\\[\\]])','{$1}')+'{ENTER}'; $cmd='control.exe'; $arg='admintools'}"
+"35"=" L ($key-split'\\\\')[1] $LNK ''; $R=[diagnostics.process]::start($cmd,$arg); if ($R) {$R.PriorityClass='High'; $R.WaitForExit()}"
+"36"=" if ($11bug) {$w=0; do {if($w-gt40){break}; sleep -mi 250;$w++} until (Q); [Microsoft.VisualBasic.Interaction]::AppActivate($(Q))}"
+"37"=" if ($11bug) {[Windows.Forms.SendKeys]::SendWait($path)}; do {sleep 7} while(Q); L '.Default' $LNK 'Interactive User'"
+"38"="'@; $V='';'cmd','arg','id','key'|%{$V+=\"`n`$$_='$($(gv $_ -val)-replace\"'\",\"''\")';\"}; sp $key $id $($V,$code) -type 7 -force -ea 0"
+"39"=" start powershell -args \"-win 1 -nop -c `n$V `$env:R=(gi `$key -ea 0).getvalue(`$id)-join''; iex `$env:R\" -verb runas"
+"40"="}; $A=([environment]::commandline-split'-[-]%+ ?',2)[1]-split'\"([^\"]+)\"|([^ ]+)',2|%{$_.Trim(' \"')}; RunAsTI $A[1] $A[2]; # AveYo, 2022.01.28"
 ;
 
 ```
 *2022.01.16: added `Open Powershell as trustedinstaller` entry on directory background*  
-*2022.01.28: workaround for 11 release (22000) delaying explorer; fix 7 args*  
+*2022.01.28: workaround for 11 release (22000) delaying explorer; fix 7 args*
+*2022.04.07: PowerShell / Terminal (if installed, use Terminal as TI, else use PowerShell as TI)*  
+
 
 #### [RunAsTI.bat](RunAsTI.bat) with ***Send to*** right-click menu entry to launch files and folders as TI - updated 2022.01.28  
 ```bat

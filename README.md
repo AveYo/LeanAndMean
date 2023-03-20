@@ -29,7 +29,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .bat
 [HKEY_CLASSES_ROOT\batfile\shell\setdesktopwallpaper]
-"MUIVerb"="Run as trustedinstaller"
+"MUIVerb"="Run as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\batfile\shell\setdesktopwallpaper\command]
@@ -37,7 +37,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .cmd
 [HKEY_CLASSES_ROOT\cmdfile\shell\setdesktopwallpaper]
-"MUIVerb"="Run as trustedinstaller"
+"MUIVerb"="Run as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\cmdfile\shell\setdesktopwallpaper\command]
@@ -45,7 +45,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .exe
 [HKEY_CLASSES_ROOT\exefile\shell\setdesktopwallpaper]
-"MUIVerb"="Run as trustedinstaller"
+"MUIVerb"="Run as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\exefile\shell\setdesktopwallpaper\command]
@@ -53,7 +53,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .msc
 [HKEY_CLASSES_ROOT\mscfile\shell\setdesktopwallpaper]
-"MUIVerb"="Run as trustedinstaller"
+"MUIVerb"="Run as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\mscfile\shell\setdesktopwallpaper\command]
@@ -61,7 +61,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .ps1
 [HKEY_CLASSES_ROOT\Microsoft.PowerShellScript.1\shell\setdesktopwallpaper]
-"MUIVerb"="Run as trustedinstaller"
+"MUIVerb"="Run as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\Microsoft.PowerShellScript.1\shell\setdesktopwallpaper\command]
@@ -69,7 +69,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .reg
 [HKEY_CLASSES_ROOT\regfile\shell\setdesktopwallpaper]
-"MUIVerb"="Import as trustedinstaller"
+"MUIVerb"="Import as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\regfile\shell\setdesktopwallpaper\command]
@@ -77,23 +77,23 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on Folder
 [HKEY_CLASSES_ROOT\Folder\shell\setdesktopwallpaper]
-"MuiVerb"="Open as trustedinstaller"
+"MuiVerb"="Open as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 "AppliesTo"="NOT System.ParsingName:=\"::{645FF040-5081-101B-9F08-00AA002F954E}\""
 [HKEY_CLASSES_ROOT\Folder\shell\setdesktopwallpaper\command]
 @="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
 
-; Open Terminal or Powershell as trustedinstaller here - can spawn another terminal with: cmd /c $env:wt
+; Open Terminal or Powershell as TrustedInstaller here - can spawn another terminal with: cmd /c $env:wt
 [HKEY_CLASSES_ROOT\Directory\background\shell\extract]
-"MuiVerb"="PowerShell / Terminal"
+"MuiVerb"="PowerShell as TrustedInstaller"
 "HasLUAShield"=""
 "NoWorkingDirectory"=""
 "Position"=-
 "Position"="Middle"
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\Directory\background\shell\extract\command]
-@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% cmd /c pushd \"%V\" & start \"RunAsTI\" %%wt%%"
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% powershell.exe -noexit -command Set-Location -literalPath '%V'"
 
 ; RunAsTI function
 [HKEY_CLASSES_ROOT\RunAsTI]
@@ -127,12 +127,13 @@ Windows Registry Editor Version 5.00
 "37"=" if ($11bug) {[Windows.Forms.SendKeys]::SendWait($path)}; do {sleep 7} while(Q); L '.Default' $LNK 'Interactive User'"
 "38"="'@; $V='';'cmd','arg','id','key'|%{$V+=\"`n`$$_='$($(gv $_ -val)-replace\"'\",\"''\")';\"}; sp $key $id $($V,$code) -type 7 -force -ea 0"
 "39"=" start powershell -args \"-win 1 -nop -c `n$V `$env:R=(gi `$key -ea 0).getvalue(`$id)-join''; iex `$env:R\" -verb runas"
-"40"="}; $A=([environment]::commandline-split'-[-]%+ ?',2)[1]-split'\"([^\"]+)\"|([^ ]+)',2|%{$_.Trim(' \"')}; RunAsTI $A[1] $A[2]; # AveYo, 2022.01.28"
+"40"="}; $A=([environment]::commandline-split'-[-]%+ ?',2)[1]-split'\"([^\"]+)\"|([^ ]+)',2|%{$_.Trim(' \"')}; RunAsTI $A[1] $A[2]; # AveYo, 2022.04.07"
 ;
-
 ```
 *2022.01.16: added `Open Powershell as trustedinstaller` entry on directory background*  
+
 *2022.01.28: workaround for 11 release (22000) delaying explorer; fix 7 args*
+
 *2022.04.07: PowerShell / Terminal (if installed, use Terminal as TI, else use PowerShell as TI)*  
 
 

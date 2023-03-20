@@ -21,7 +21,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .bat
 [HKEY_CLASSES_ROOT\batfile\shell\setdesktopwallpaper]
-"MUIVerb"="Run as trustedinstaller"
+"MUIVerb"="Run as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\batfile\shell\setdesktopwallpaper\command]
@@ -29,7 +29,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .cmd
 [HKEY_CLASSES_ROOT\cmdfile\shell\setdesktopwallpaper]
-"MUIVerb"="Run as trustedinstaller"
+"MUIVerb"="Run as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\cmdfile\shell\setdesktopwallpaper\command]
@@ -37,7 +37,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .exe
 [HKEY_CLASSES_ROOT\exefile\shell\setdesktopwallpaper]
-"MUIVerb"="Run as trustedinstaller"
+"MUIVerb"="Run as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\exefile\shell\setdesktopwallpaper\command]
@@ -45,7 +45,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .msc
 [HKEY_CLASSES_ROOT\mscfile\shell\setdesktopwallpaper]
-"MUIVerb"="Run as trustedinstaller"
+"MUIVerb"="Run as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\mscfile\shell\setdesktopwallpaper\command]
@@ -53,7 +53,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .ps1
 [HKEY_CLASSES_ROOT\Microsoft.PowerShellScript.1\shell\setdesktopwallpaper]
-"MUIVerb"="Run as trustedinstaller"
+"MUIVerb"="Run as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\Microsoft.PowerShellScript.1\shell\setdesktopwallpaper\command]
@@ -61,7 +61,7 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on .reg
 [HKEY_CLASSES_ROOT\regfile\shell\setdesktopwallpaper]
-"MUIVerb"="Import as trustedinstaller"
+"MUIVerb"="Import as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\regfile\shell\setdesktopwallpaper\command]
@@ -69,23 +69,23 @@ Windows Registry Editor Version 5.00
 
 ; RunAsTI on Folder
 [HKEY_CLASSES_ROOT\Folder\shell\setdesktopwallpaper]
-"MuiVerb"="Open as trustedinstaller"
+"MuiVerb"="Open as TrustedInstaller"
 "HasLUAShield"=""
 "Icon"="powershell.exe,0"
 "AppliesTo"="NOT System.ParsingName:=\"::{645FF040-5081-101B-9F08-00AA002F954E}\""
 [HKEY_CLASSES_ROOT\Folder\shell\setdesktopwallpaper\command]
 @="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% \"%L\""
 
-; Open Terminal or Powershell as trustedinstaller here - can spawn another terminal with: cmd /c $env:wt
+; Open Terminal or Powershell as TrustedInstaller here - can spawn another terminal with: cmd /c $env:wt
 [HKEY_CLASSES_ROOT\Directory\background\shell\extract]
-"MuiVerb"="PowerShell / Terminal"
+"MuiVerb"="PowerShell as TrustedInstaller"
 "HasLUAShield"=""
 "NoWorkingDirectory"=""
 "Position"=-
 "Position"="Middle"
 "Icon"="powershell.exe,0"
 [HKEY_CLASSES_ROOT\Directory\background\shell\extract\command]
-@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% cmd /c pushd \"%V\" & start \"RunAsTI\" %%wt%%"
+@="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -win 1 -nop -c iex((10..40|%%{(gp 'Registry::HKCR\\RunAsTI' $_ -ea 0).$_})-join[char]10); # --%% powershell.exe -noexit -command Set-Location -literalPath '%V'"
 
 ; RunAsTI function
 [HKEY_CLASSES_ROOT\RunAsTI]

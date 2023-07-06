@@ -4,7 +4,7 @@ RunAsTI - TrustedInstaller access rights while keeping HKCU loaded
 ---  
 *supports Windows 7 - Windows 10 - Windows 11 release - Windows 11 dev*  
 
-#### [RunAsTI.reg](RunAsTI.reg) context menu for folders, exe, msc, bat, cmd, reg - updated 2022.01.28  
+#### [RunAsTI.reg](RunAsTI.reg) context menu for folders, exe, msc, bat, cmd, reg - updated 2023.07.06  
 ```reg
 Windows Registry Editor Version 5.00
 
@@ -137,7 +137,7 @@ Windows Registry Editor Version 5.00
 *2022.04.07: PowerShell / Terminal (if installed, use Terminal as TI, else use PowerShell as TI)*  
 *2023.07.06: fix arguments with quotes*  
 
-#### [RunAsTI.bat](RunAsTI.bat) with ***Send to*** right-click menu entry to launch files and folders as TI - updated 2022.01.28  
+#### [RunAsTI.bat](RunAsTI.bat) with ***Send to*** right-click menu entry to launch files and folders as TI - updated 2023.07.06  
 ```bat
 @echo off& title RunAsTI - lean and mean snippet by AveYo, 2018-2022
 goto :nfo

@@ -1,20 +1,19 @@
-@(set "0=%~f0"^)#) & powershell -nop -c "`i`e`x([io.file]::ReadAllText($env:0))" & exit /b
+@(set "0=%~f0"^)#) & powershell -nop -c "iex([io.file]::ReadAllText($env:0))" & exit /b
 
 ## Toggle Def`ender, AveYo 2023.08.06 - now more lean and mean
 ## for those scenarios where preventing random interference is needed - only works after Tamp`er Prot`ection is off 
 ## but ms devs still fake-positive'd the script, while actual tro.jans can neuter the service or even uninstall it regardless..
 ## just copy-paste into powershell
 
-## the ` sprinkles everywhere are used to keep ps event log clean
-if (get-process "msmp`eng" -ea 0) {$YES=6; $Q="Disable"; $NO=7; $V="ON"; $I=0} else {$YES=7; $Q="Enable"; $NO=6; $V="OFF"; $I=16}
-
 ## TP check
 if ((gp "HKLM:\SOFTWARE\Microsoft\Windows Def`ender\Features" "Tamp`erProtection" -ea 0)."Tamp`erProtection" -eq 0x5) {
   write-host "`n Toggle Def`ender only works after Tamp`er Prot`ection is off in Windows Se`curity settings`n"
-  start "windowsd`efender://thr`eatsettings/"
   choice /c EX1T 
   if ((gp "HKLM:\SOFTWARE\Microsoft\Windows Def`ender\Features" "Tamp`erProtection" -ea 0)."Tamp`erProtection" -eq 0x5) {return}
 }
+
+## the ` sprinkles everywhere are used to keep ps event log clean, dear code labs (difficult to analyze lol)   
+if (get-process "msmp`eng" -ea 0) {$YES=6; $Q="Disable"; $NO=7; $V="ON"; $I=0} else {$YES=7; $Q="Enable"; $NO=6; $V="OFF"; $I=16}
 
 ## Comment to hide dialog prompt with Yes, No, Cancel (6,7,2)
 if ($env:1 -ne 6 -and $env:1 -ne 7) {
@@ -99,7 +98,7 @@ function RunAsTI { $id="Def`ender"; $key="Registry::HKU\$(((whoami /user)-split'
  
  ################################################################################################################################
 '@; $V='';'op','id','key'|%{$V+="`n`$$_='$($(gv $_ -val)-replace"'","''")';"}; sp $key $id $($V,$code) -type 7 -force -ea 0
- start powershell -args "-nop -c `n$V `$env:R=(gi `$key -ea 0).getvalue(`$id)-join''; iex `$env:R" -verb runas
+ start powershell -args "-nop -c `n$V `$env:R=(gi `$key -ea 0).getvalue(`$id)-join''; iex(`$env:R)" -verb runas
 } # lean & mean snippet by AveYo, 2023.08.06
 
 RunAsTI

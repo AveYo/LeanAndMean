@@ -1,28 +1,27 @@
 @(set "0=%~f0"^)#) & powershell -nop -c "iex([io.file]::ReadAllText($env:0))" & exit /b
 
-## Toggle Defender, AveYo 2023.08.06 - now more lean and mean
-## for those scenarios where preventing random interference is needed - only works after Tamper Protection is off 
-## but ms devs still fake-positive'd the script, while actual tro.jans can neuter the service or even uninstall it regardless..
-## just copy-paste into powershell
+## Toggle Defender, AveYo 2023.08.07
+## for users that understand the risk but still need it off to prevent unexpected interference and i/o handicap
+## may copy-paste directly into powershell
 
-## TP check
-if ((gp "HKLM:\SOFTWARE\Microsoft\Windows Defender\Features" "TamperProtection" -ea 0)."TamperProtection" -eq 0x5) {
-  write-host "`n Toggle Defender only works after Tamper Protection is off in Windows Security settings`n"
+## Allowed check
+if ((gp "HKLM:\SOFTWARE\Microsoft\Windows Defender\Features" "TamperProtection" -ea 0).TamperProtection -eq 0x5) {
+  write-host "`n Toggle Defender only works after turning Tamper Protection off in Windows Security settings`n"
   choice /c EX1T 
-  if ((gp "HKLM:\SOFTWARE\Microsoft\Windows Defender\Features" "TamperProtection" -ea 0)."TamperProtection" -eq 0x5) {return}
+  if ((gp "HKLM:\SOFTWARE\Microsoft\Windows Defender\Features" "TamperProtection" -ea 0).TamperProtection -eq 0x5) {return}
 }
 
-## Running check
-if (get-process "msmpeng" -ea 0) {$YES=6; $Q="Disable"; $NO=7; $V="ON"; $I=0} else {$YES=7; $Q="Enable"; $NO=6; $V="OFF"; $I=16}
+## Service check
+if (get-process "MsMpEng" -ea 0) {$YES=6; $Q="Disable"; $NO=7; $V="ON"; $I=0} else {$YES=7; $Q="Enable"; $NO=6; $V="OFF"; $I=16}
 
 ## Comment to hide dialog prompt with Yes, No, Cancel (6,7,2)
 if ($env:1 -ne 6 -and $env:1 -ne 7) {
-  $choice=(new-object -ComObject Wscript.Shell).Popup($Q + " Windows Defender?", 0, "Defender is: " + $V, 0x1033 + $I)
+  $choice=(new-object -ComObject Wscript.Shell).Popup($Q + " Windows Defender?", 0, "Defender service is: " + $V, 0x1033 + $I)
   if ($choice -eq 2) {break} elseif ($choice -eq 6) {$env:1=$YES} else {$env:1=$NO}
 }
 
-## Without the dialog prompt above will toggle automatically
-if ($env:1 -ne 6 -and $env:1 -ne 7) { $env:1=$YES }
+## Without the dialog prompt above would toggle automatically
+if ($env:1 -ne 6 -and $env:1 -ne 7) {$env:1=$YES}
 
 ## Toggle - can press No to Enable or Disable again so there are more variants:
 if ( ($NO -eq 7 -and $env:1 -eq 6) -or ($NO -eq 6 -and $env:1 -eq 6) ) {$op="Disable"} 
@@ -48,13 +47,13 @@ function RunAsTI { $id="Defender"; $key="Registry::HKU\S-1-5-21-*\Volatile Envir
  "SeSecurityPr`ivilege","SeTakeOwnershipPr`ivilege","SeBackupPr`ivilege","SeRestorePr`ivilege" |% {$e.Invoke($null,@("$_",2))}
  ################################################################################################################################ 
  
- ## the ` sprinkles are used to keep ps event log clean, not quote the whole snippet on every run
+ ## The ` sprinkles are used to keep ps event log clean, not quote the whole snippet on every run
  $toggle = @(0,1)[$op -eq "Disable"]; write-host "`n $op Defender, please wait...`n"
  $HKLM=[uintptr][uint32]2147483650; $REG_OPTION_NONE=0; $KEY_SET_VALUE=2; $REG_DWORD=4                    
  $K1="Software\Policies\Microsoft\Windows Defender"; $K2="Software\Microsoft\Windows Defender" 
  
- ## toggling was unreliable due to multiple programs with open handles on these keys
- ## so I went with low-level functions instead! imitators should not use it without a trip to learn-microsoft-com  
+ ## Toggling was unreliable due to multiple windows programs with open handles on these keys
+ ## so I went with low-level functions instead! do not use them in other scripts without a trip to learn-microsoft-com  
  function ToggleDef ([byte[]]$d0,[byte[]]$d1) {
    $rok1=($HKLM, $K1, $REG_OPTION_NONE, $KEY_SET_VALUE, ($HKLM -as $D[9])); F "RegOp`enKeyEx" $rok1; $rsv1=$rok1[4]; #$rsv1
    $rok2=($HKLM, $K2, $REG_OPTION_NONE, $KEY_SET_VALUE, ($HKLM -as $D[9])); F "RegOp`enKeyEx" $rok2; $rsv2=$rok2[4]; #$rsv2
@@ -70,23 +69,29 @@ function RunAsTI { $id="Defender"; $key="Registry::HKU\S-1-5-21-*\Volatile Envir
    $rok1=$null; $rok2=$null; $rsv1=$null; $rsv2=$null; [GC]::Collect() 
  }
 
- stop-service "wscsvc"
- kill -name "mpcmdrun" -force -ea 0 
+ rnp "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" "Disabled" "Disabled_Old" -force -ea 0
+ sp "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" "Disabled" 1 -type Dword -force -ea 0
+ stop-service "wscsvc" -force -ea 0 >'' 2>''
+ kill -name "OFFmeansOFF","MpCmdRun" -force -ea 0 
  ToggleDef 0 $toggle
 
- pushd "$env:ProgramFiles\Windows Defender"
- start -wait "mpcmdrun.exe" -args "-${op}Service -HighPriority"
-  
- while (get-process -name "mpcmdrun" -ea 0) {sleep 1}
- $wait=@(3,14)[$op -eq "Disable"]
- while ((get-process -name "msmpeng" -ea 0) -and $wait -gt 0) {$wait--; sleep 1; write-host "`r $wait" -nonew}
- write-host "    "
+ pushd "$env:programfiles\Windows Defender"
+ $mpcmdrun=("OFFmeansOFF.exe","MpCmdRun.exe")[(test-path "MpCmdRun.exe")]
+ start -wait $mpcmdrun -args "-${op}Service -HighPriority"
 
+ $wait=@(3,14)[$op -eq "Disable"]
+ while ((get-process -name "MsMpEng" -ea 0) -and $wait -gt 0) {$wait--; sleep 1; write-host "`r $wait " -nonew}
+ 
+ ## OFF means OFF
+ pushd (split-path $(gp "HKLM:\SYSTEM\CurrentControlSet\Services\WinDefend" ImagePath -ea 0).ImagePath.Trim('"'))
+ if ($op -eq "Disable") {ren MpCmdRun.exe OFFmeansOFF.exe -force -ea 0} else {ren OFFmeansOFF.exe MpCmdRun.exe -force -ea 0}
+ 
  ## Comment to not clear per-user toggle notifications
- gi "Registry::HKU\*\SOFTWARE\Microsoft\Windows\CurrentVersion" |% {
-   $n1=join-path $_ "Notifications\Settings\Windows.SystemToast.SecurityAndMaintenance"
-   ni $n1 -ea 0|out-null; ri $n1.replace("Settings","Current") -recurse -force -ea 0
-   if ($op -eq "Disable") {reg add "$n1" /f /v Enabled /d 0 /t reg_dword >$null} else {reg delete "$n1" /f /v Enabled >$null 2>&1}  
+ gi "Registry::HKU\S-1-5-21-*\SOFTWARE\Microsoft\Windows\CurrentVersion" |% {
+   $n1=join-path $_.PSPath "Notifications\Settings\Windows.SystemToast.SecurityAndMaintenance"
+   ni $n1 -force -ea 0|out-null; ri $n1.replace("Settings","Current") -recurse -force -ea 0
+   if ($op -eq "Enable") {rp $n1 "Enabled" -force -ea 0} else {sp $n1 "Enabled" 0 -type Dword -force -ea 0}
+   ri "HKLM:\SOFTWARE\Microsoft\Windows Security Health\State\Persist" -recurse -force -ea 0 
  }
 
  ## Comment to keep old scan history
@@ -94,13 +99,14 @@ function RunAsTI { $id="Defender"; $key="Registry::HKU\S-1-5-21-*\Volatile Envir
  if ($op -eq "Disable") {del "$env:ProgramData\Microsoft\Windows Defender\Scans\History\Service" -recurse -force -ea 0}
 
  ToggleDef 0 $toggle
- if ($toggle -eq 0) {start-service "windefend" -ea 0}
- start-service "wscsvc"
+ if ($op -eq "Enable") {start-service "windefend" -ea 0}
+ start-service "wscsvc" -ea 0 >'' 2>'' 
+ if ($op -eq "Enable") {rnp "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" "Disabled_Old" "Disabled" -force -ea 0}
  
  ################################################################################################################################
 '@; $V='';"op","id","key"|%{$V+="`n`$$_='$($(gv $_ -val)-replace"'","''")';"}; sp $key $id $($V,$code) -type 7 -force -ea 0
  start powershell -args "-nop -c `n$V  `$env:R=(gi `$key -ea 0 |% {`$_.getvalue(`$id)-join''}); iex(`$env:R)" -verb runas
-} # lean & mean snippet by AveYo, 2023.08.06
+} # lean & mean snippet by AveYo, 2023.08.07
 
 RunAsTI
 return

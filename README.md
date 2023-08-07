@@ -537,14 +537,7 @@ ToggleDefender - without it re-enabling itself at the worst moment
 February 14 2022: Tamper Protection finally reliable - this script and more pesky stuff have been ignoring it just fine for 3 freaking years, about time!  
 So now it won't work unless you disable Tamper Protection manually from GUI - which **I strongly advise re-enabling after you're done with intensive tasks**!  
 August 2023: ToggleDefender now reliably switches the service on and off!  
-You still need to manually turn off Tamper Protection, and the script will warn and open the Settings page  
-
-[Crowdsourced AI likes it very much at the moment](https://www.virustotal.com/gui/file/a68d889083ed1e11008c65a875fd02602d162bcbe0f767539e158df040146255?nocache=1)
-
->The code you provided is a PowerShell script that can be used to disable or enable Windows Defender. The script first checks to see if Tamper Protection is enabled, and if it is, it displays a message informing the user that the script will not work. If Tamper Protection is not enabled, the script checks to see if Windows Defender is running, and if it is, it prompts the user to confirm that they want to disable it. If the user confirms, the script kills the Windows Defender process and then changes the registry settings to disable Windows Defender. The script then restarts Windows Defender and displays a message informing the user that Windows Defender has been disabled.
-
->The script is well-written and easy to understand. It does not contain any obfuscated code or malicious content. However, it is important to note that disabling Windows Defender can leave your computer vulnerable to attack. Therefore, you should only use this script if you are confident that you know what you are doing.
-
+You still need to manually turn off Tamper Protection, and the script will warn and wait for it  
 
 #### [ToggleDefender.bat](ToggleDefender.bat) or [ToggleDefender.ps1](ToggleDefender.ps1) or copy-paste code in powershell console  - updated 2023.08.07  
 ```ps1

@@ -32,6 +32,9 @@ if ($env:1 -ne 6 -and $env:1 -ne 7) {$env:1=$YES}
 if ( ($NO -eq 7 -and $env:1 -eq 6) -or ($NO -eq 6 -and $env:1 -eq 6) ) {$op="Disable"} 
 if ( ($NO -eq 7 -and $env:1 -eq 7) -or ($NO -eq 6 -and $env:1 -eq 7) ) {$op="Enable"}
 
+## pass script options
+$O1 = $ENABLE_TAMPER_PROTECTION; $O2 = $TOGGLE_SMARTSCREENFILTER
+
 ## RunAsTI mod
 function RunAsTI { $id="Defender"; $key='Registry::HKU\S-1-5-21-*\Volatile Environment'; $code=@'
  $I=[int32]; $M=$I.module.gettype("System.Runtime.Interop`Services.Mar`shal"); $P=$I.module.gettype("System.Int`Ptr"); $S=[string]
@@ -60,7 +63,9 @@ function RunAsTI { $id="Defender"; $key='Registry::HKU\S-1-5-21-*\Volatile Envir
  ## The ` sprinkles are used to keep ps event log clean, not quote the whole snippet on every run
  ################################################################################################################################ 
  
+ ## get script options
  $toggle = @(0,1)[$op -eq "Disable"]; $toggle_rev = @(0,1)[$op -eq "Enable"]; write-host "`n $op Defender, please wait...`n"
+ $ENABLE_TAMPER_PROTECTION = $O1; $TOGGLE_SMARTSCREENFILTER = $O2
 
  rnp "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" "Disabled" "Disabled_Old" -force -ea 0
  sp "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" "Disabled" 1 -type Dword -force -ea 0
@@ -120,7 +125,7 @@ function RunAsTI { $id="Defender"; $key='Registry::HKU\S-1-5-21-*\Volatile Envir
  if ($op -eq "Enable") {rnp "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" "Disabled_Old" "Disabled" -force -ea 0}
  
  ################################################################################################################################
-'@; $V='';"op","id","key"|%{$V+="`n`$$_='$($(gv $_ -val)-replace"'","''")';"}; sp $key $id $($V,$code) -type 7 -force -ea 0
+'@; $V='';"op","id","key","O1","O2"|%{$V+="`n`$$_='$($(gv $_ -val)-replace"'","''")';"}; sp $key $id $V,$code -type 7 -force -ea 0
  start powershell -args "-nop -c `n$V  `$env:R=(gi `$key -ea 0 |% {`$_.getvalue(`$id)-join''}); iex(`$env:R)" -verb runas
 } # lean & mean snippet by AveYo, 2023.09.05
 

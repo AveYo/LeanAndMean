@@ -539,16 +539,16 @@ So now it won't work unless you disable Tamper Protection manually from GUI - wh
 August 2023: ToggleDefender now reliably switches the service on and off!  
 You still need to manually turn off Tamper Protection, and the script will warn and wait for it  
 
-#### [ToggleDefender.bat](ToggleDefender.bat) or [ToggleDefender.ps1](ToggleDefender.ps1) or copy-paste code in powershell console  - updated 2023.09.05  
+#### [ToggleDefender.bat](ToggleDefender.bat) or [ToggleDefender.ps1](ToggleDefender.ps1) or copy-paste code in powershell console  - updated 2023.09.13  
 ```ps1
 @(set "0=%~f0"^)#) & powershell -nop -c "iex([io.file]::ReadAllText($env:0))" & exit /b
 
-## Toggle Defender, AveYo 2023.09.05
+## Toggle Defender, AveYo 2023.09.13
 ## for users that understand the risk but still need it off to prevent unexpected interference and i/o handicap
 ## may copy-paste directly into powershell
 
-$ENABLE_TAMPER_PROTECTION = 1    <#  1 script re-enables Tamper Protection   0 skip  #>
-$TOGGLE_SMARTSCREENFILTER = 0    <#  1 script toggles SmartScreen as well    0 skip  #>
+$ENABLE_TAMPER_PROTECTION = 0    <#  1 script re-enables Tamper Protection   0 skip  #>
+$TOGGLE_SMARTSCREENFILTER = 1    <#  1 script toggles SmartScreen as well    0 skip  #>
 
 ## Allowed check
 $wait = 20; while ((gp 'HKLM:\SOFTWARE\Microsoft\Windows Defender\Features' 'TamperProtection' -ea 0).TamperProtection -ne 0x4) {
@@ -648,6 +648,7 @@ function RunAsTI { $id="Defender"; $key='Registry::HKU\S-1-5-21-*\Volatile Envir
 
  ## when toggling Defender, also toggle SmartScreen - set to 0 at top of the script to skip it
  if ($TOGGLE_SMARTSCREENFILTER -ne 0) {
+   sp "HKLM:\CurrentControlSet\Control\CI\Policy" 'VerifiedAndReputablePolicyState' 0 -type Dword -force -ea 0
    sp "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" 'SmartScreenEnabled' @('Off','Warn')[$toggle -eq 0] -force -ea 0 
    gi Registry::HKEY_Users\S-1-5-21*\Software\Microsoft -ea 0 |% {
      sp "$($_.PSPath)\Windows\CurrentVersion\AppHost" 'EnableWebContentEvaluation' $toggle_rev -type Dword -force -ea 0

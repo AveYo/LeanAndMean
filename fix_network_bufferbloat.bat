@@ -1,4 +1,4 @@
-@(set ^ "f0=%temp%\FixNetworkBufferbloat.ps1" -desc ')|| AveYo, 2024.11.19
+@(set ^ "f0=%temp%\FixNetworkBufferbloat.ps1" -desc ')|| AveYo, 2024.11.19 #2
 @(fc %0 "%f0%" 2>&1||copy /b %0+nul "%f0%" /y)>nul& powershell -nop -ep RemoteSigned -f "%f0%" %* -dp0 "%CD%"
 @exit /b '); . { Param($dp0 = $pwd.Path); $dp0 = $dp0.Trim('" \'); $n0 = ${^}-replace'^.+\\|.{4}$',''; cd -l "$dp0\" -ea 0
 
@@ -59,7 +59,7 @@ if ($do -eq 'upload' -or $do -eq 'both') {
     sp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" NonBestEffortLimit $QoS -type dword -force -ea 0 # 80
     Get-NetQosPolicy | Remove-NetQosPolicy -Confirm:$False -ea 0
     Remove-NetQosPolicy "Bufferbloat" -Confirm:$False -ea 0
-    New-NetQosPolicy "Bufferbloat" -Precedence 254 -DSCPAction 34 -NetworkProfile Public -Default -PriorityValue8021Action 6 -MinBandwidthWeightAction $MBW
+    New-NetQosPolicy "Bufferbloat" -Precedence 254 -DSCPAction 34 -NetworkProfile Public -Default -MinBandwidthWeightAction $MBW # -PriorityValue8021Action 6
   } 2>'' 1>''
 }
 

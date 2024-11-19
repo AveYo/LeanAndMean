@@ -1,4 +1,4 @@
-@(set ^ "f0=%temp%\FixNetworkBufferbloat.ps1" -desc ')|| AveYo, 2024.11.19 #2
+@(set ^ "f0=%temp%\FixNetworkBufferbloat.ps1" -desc ')|| AveYo, 2024.11.19 #3
 @(fc %0 "%f0%" 2>&1||copy /b %0+nul "%f0%" /y)>nul& powershell -nop -ep RemoteSigned -f "%f0%" %* -dp0 "%CD%"
 @exit /b '); . { Param($dp0 = $pwd.Path); $dp0 = $dp0.Trim('" \'); $n0 = ${^}-replace'^.+\\|.{4}$',''; cd -l "$dp0\" -ea 0
 
@@ -6,14 +6,15 @@ write-host @'
 
   FixNetworkBufferbloat - test on waveform.com/tools/bufferbloat and speedtest.net
   You should upgrade to a router with fast cpu and ram having Smart Queue Management 
-  This script is no SQM, but just a short term network configuration! 
+  This script is no SQM, but just a short term network limits configuration!
+  Download fix limits single-part dl, upload fix limits up speeds, but games benefit  
   Close powershell to not make changes. Run a second time to select both choices:
   - Bufferbloat higher on Download or Upload (Mean value)?
   - Yes = Download, No = Upload, Cancel = Reset to defaults
   
 '@
 
-#:: 2024.11.19 good improvements even on shitty 4G hotspot 
+#:: 2024.11.19 good improvements even on shitty 4G hotspot, do a reset then try upload fix first 
 
 #:: Args / Dialog - can use commandline parameters to skip the prompt
 $cl = @{-1 = 'reset'; 0 = 'download'; 1 = 'upload'; 2 = 'both'} ; $DL = ""; $UL = ""  

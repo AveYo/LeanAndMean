@@ -1,6 +1,6 @@
-@(set ^ "f0=%temp%\FixNetworkBufferbloat.ps1" -desc ')|| AveYo, 2024.11.19 #3
+@(set ^ "f0=%temp%\FixNetworkBufferbloat.ps1" -desc ')|| AveYo, 2024.11.19 final
 @(fc %0 "%f0%" 2>&1||copy /b %0+nul "%f0%" /y)>nul& powershell -nop -ep RemoteSigned -f "%f0%" %* -dp0 "%CD%"
-@exit /b '); . { Param($dp0 = $pwd.Path); $dp0 = $dp0.Trim('" \'); $n0 = ${^}-replace'^.+\\|.{4}$',''; cd -l "$dp0\" -ea 0
+@exit /b '); . { Param($dp0 = $pwd.Path); $dp0 = $dp0.Trim('" \'); $n0 = ${^}-replace'^.+\\|.{4}$',''; cd -l "$dp0\" -ea 0;
 
 write-host @'
 
@@ -60,7 +60,7 @@ if ($do -eq 'upload' -or $do -eq 'both') {
     sp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" NonBestEffortLimit $QoS -type dword -force -ea 0 # 80
     Get-NetQosPolicy | Remove-NetQosPolicy -Confirm:$False -ea 0
     Remove-NetQosPolicy "Bufferbloat" -Confirm:$False -ea 0
-    New-NetQosPolicy "Bufferbloat" -Precedence 254 -DSCPAction 34 -NetworkProfile Public -Default -MinBandwidthWeightAction $MBW # -PriorityValue8021Action 6
+    New-NetQosPolicy "Bufferbloat" -Precedence 254 -DSCPAction 40 -NetworkProfile Public -Default -MinBandwidthWeightAction $MBW #-PriorityValue8021Action 5
   } 2>'' 1>''
 }
 
@@ -165,18 +165,18 @@ if ($do -ne 'reset') {
     netsh int tcp set supplemental internet delayedacktimeout=40       # Controls TCP delayed ack timeout. 10 to 600 msec.
     netsh int tcp set supplemental internet delayedackfrequency=2      # Controls TCP delayed ack frequency. 1 to 255.
     netsh int tcp set supplemental internet rack=enabled               # Controls whether RACK time based recovery is enabled.
-    netsh int tcp set supplemental internet taillossprobe=disabled      # Controls whether Tail Loss Probe is enabled.
+    netsh int tcp set supplemental internet taillossprobe=disabled     # Controls whether Tail Loss Probe is enabled.
     netsh int tcp set security mpp=disabled                            # Memory pressure protection (SYN flood drop)
     netsh int tcp set security profiles=disabled                       # Profiles protection (private vs domain)
 
     netsh int tcp set global rss=enabled                    # Enable receive-side scaling.
     netsh int tcp set global autotuninglevel=$RWSCALING     # Fix the receive window at its default value
     netsh int tcp set global ecncapability=enabled          # Enable/disable ECN Capability.
-    netsh int tcp set global timestamps=disabled             # Enable/disable RFC 1323 timestamps.
+    netsh int tcp set global timestamps=disabled            # Enable/disable RFC 1323 timestamps.
     netsh int tcp set global initialrto=1000                # Connect (SYN) retransmit time (in ms).
     netsh int tcp set global rsc=disabled                   # Enable/disable receive segment coalescing.
     netsh int tcp set global nonsackrttresiliency=$NONSACK  # Enable/disable rtt resiliency for non sack clients.
-    netsh int tcp set global maxsynretransmissions=5       # Connect retry attempts using SYN packets.
+    netsh int tcp set global maxsynretransmissions=5        # Connect retry attempts using SYN packets.
     netsh int tcp set global fastopen=enabled               # Enable/disable TCP Fast Open.
     netsh int tcp set global fastopenfallback=enabled       # Enable/disable TCP Fast Open fallback.
     netsh int tcp set global hystart=disabled               # Enable/disable the HyStart slow start algorithm.

@@ -1,30 +1,33 @@
-@(set ^ "f0=%temp%\FixNetworkBufferbloat.ps1" -desc ')|| AveYo, 2024.11.19 final
+@(set ^ "f0=%temp%\FixNetworkBufferbloat.ps1" -desc ')|| AveYo, 2024.11.20
 @(fc %0 "%f0%" 2>&1||copy /b %0+nul "%f0%" /y)>nul& powershell -nop -ep RemoteSigned -f "%f0%" %* -dp0 "%CD%"
-@exit /b '); . { Param($dp0 = $pwd.Path); $dp0 = $dp0.Trim('" \'); $n0 = ${^}-replace'^.+\\|.{4}$',''; cd -l "$dp0\" -ea 0;
+@exit /b '); . { Param($dp0 = $pwd.Path); $dp0 = $dp0.Trim('" \'); $n0 = ${^}-replace'^.+\\|.{4}$',''; cd -l "$dp0\" -ea 0 #
 
 write-host @'
 
   FixNetworkBufferbloat - test on waveform.com/tools/bufferbloat and speedtest.net
   You should upgrade to a router with fast cpu and ram having Smart Queue Management 
   This script is no SQM, but just a short term network limits configuration!
-  Download fix limits single-part dl, upload fix limits up speeds, but games benefit  
+  Download fix limits single-part dl, upload fix limits up speeds, but games benefit!  
   Close powershell to not make changes. Run a second time to select both choices:
-  - Bufferbloat higher on Download or Upload (Mean value)?
-  - Yes = Download, No = Upload, Cancel = Reset to defaults
+  - Bufferbloat higher on Upload or Download (Mean value)?
+  - Yes = Upload fix, No = Download fix, Cancel = Reset to defaults
   
 '@
 
-#:: 2024.11.19 good improvements even on shitty 4G hotspot, do a reset then try upload fix first 
+#:: 2024.11.19 good improvements even on shitty 4G hotspot, do a reset then try upload fix first
+#:: 2024.11.20 do not change disabled adapters; revert order to Yes = Upload fix, No = Download fix 
+if ($MyInvocation.ScriptName) {$host.ui.RawUI.WindowTitle = "$n0"}
 
 #:: Args / Dialog - can use commandline parameters to skip the prompt
 $cl = @{-1 = 'reset'; 0 = 'download'; 1 = 'upload'; 2 = 'both'} ; $DL = ""; $UL = ""  
 $do = ''; foreach ($a in $cl.Values) { if ($args -contains $a) {$do = $a} } ; if ($do -eq '') {
   if (Get-NetQosPolicy -name "Bufferbloat" -ea 0) {$UL = [char]0x2713} ; $d = Get-NetTCPSetting -SettingName internet
   if ($d.AutoTuningLevelLocal -eq "Disabled" -or $d.AutoTuningLevelGroupPolicy -eq "Disabled") {$DL = [char]0x2713}
-  $title = "Bufferbloat higher on  Download or Upload (Mean) ?"; $msg = "Yes = Download $DL ,  No = Upload $UL ,  Cancel = Reset"
+  $title = "Bufferbloat higher on Upload or Download (Mean) ?"; $msg = "Yes = Upload $UL ,  No = Download $DL ,  Cancel = Reset"
   $choice = (new-object -ComObject Wscript.Shell).Popup($msg, 0, $title, 0x1043)
-  if ($choice -eq 2) {$do = $cl.-1} elseif ($choice -eq 6) {$do = $cl.0} else {$do = $cl.1} ; $args = ,$do
+  if ($choice -eq 2) {$do = $cl.-1} elseif ($choice -eq 6) {$do = $cl.1} else {$do = $cl.0} ; $args = ,$do
 }
+if ($MyInvocation.ScriptName) {$host.ui.RawUI.WindowTitle = "$n0 $do"}
 
 #:: Elevate
 if ($true -and [Security.Principal.WindowsIdentity]::GetCurrent().Groups -notcontains "S-1-5-32-544") {
@@ -37,22 +40,15 @@ if ($true -and [Security.Principal.WindowsIdentity]::GetCurrent().Groups -notcon
 }
 
 #:: Do
-if ($MyInvocation.ScriptName) {$host.ui.RawUI.WindowTitle = "$n0 $do"}
-$NIC = @()
-foreach ($a in Get-NetAdapter -Physical | Select-Object DeviceID,Name) { 
+$NIC = @(); $Disabled = @()
+foreach ($a in Get-NetAdapter -Physical | Select-Object DeviceID,Name,InterfaceAdminStatus) { 
   $NIC += @{ $($a | Select Name -ExpandProperty Name) = $($a | Select DeviceID -ExpandProperty DeviceID) }
+  if ($a.InterfaceAdminStatus -eq 2) {$Disabled += $a | Select Name -ExpandProperty Name}
 }
-$NICs = $NIC.Keys -join ', '
-
-if ($do -eq 'download' -or $do -eq 'both') {
-  $RWSCALING = 'Disabled'; $NONSACK = ('Enabled','Disabled')[$UL -eq ""]; $QoS = (50,80)[$UL -eq ""];
-  write-host " Download Autotuning OFF" -fore Yellow; . {
-    rp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "Tcp Autotuning Level" -force -ea 0
-  } 2>'' 1>''
-}
+$NICs = ($NIC.Keys | where {$Disabled -notcontains $_}) -join ', '
 
 if ($do -eq 'upload' -or $do -eq 'both') {
-  $RWSCALING = ('Disabled','Normal')[$do -eq 'upload' -and $DL -eq ""]; $NONSACK = 'Enabled'; $QoS = 50; $MBW = 98
+  $RWSCALING = 'Normal'; $NONSACK = 'Enabled'; $QoS = 50; $MBW = 98; if ($do -eq 'both' -or $DL -ne "") {$RWSCALING = 'Disabled'}
   write-host " Upload QoS ON" -fore Yellow; . {
     ni "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\QoS" -ea 0
     sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\QoS" "Do not use NLA" 1 -type string -force -ea 0
@@ -60,19 +56,27 @@ if ($do -eq 'upload' -or $do -eq 'both') {
     sp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" NonBestEffortLimit $QoS -type dword -force -ea 0 # 80
     Get-NetQosPolicy | Remove-NetQosPolicy -Confirm:$False -ea 0
     Remove-NetQosPolicy "Bufferbloat" -Confirm:$False -ea 0
-    New-NetQosPolicy "Bufferbloat" -Precedence 254 -DSCPAction 40 -NetworkProfile Public -Default -MinBandwidthWeightAction $MBW #-PriorityValue8021Action 5
+    New-NetQosPolicy "Bufferbloat" -Precedence 254 -DSCPAction 40 -NetworkProfile Public -Default -MinBandwidthWeightAction $MBW
+  } 2>'' 1>''
+}
+
+if ($do -eq 'download' -or $do -eq 'both') {
+  $RWSCALING = 'Disabled'; $NONSACK = 'Disabled'; $QoS = 80; if ($do -eq 'both' -or $UL -ne "") {$NONSACK = 'Enabled'; $QoS = 50} 
+  write-host " Download Autotuning OFF" -fore Yellow; . {
+    rp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "Tcp Autotuning Level" -force -ea 0
   } 2>'' 1>''
 }
 
 if ($do -ne 'reset') {
   " SG TCPOptimizer tweaks"; . {
-    $NIC.Values |foreach {
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$_" TcpAckFrequency 2 -type dword -force -ea 0  #1
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$_" TcpNoDelay 1 -type dword -force -ea 0
+    $NIC | where {$Disabled -notcontains $_.Keys} |foreach { $guid = $_.Values
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpNoDelay 1 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpAckFrequency 2 -type dword -force -ea 0 #1
+      rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpDelAckTicks 0 -type dword -force -ea 0
     }
     if (gi "HKLM:\SOFTWARE\Microsoft\MSMQ") {sp "HKLM:\SOFTWARE\Microsoft\MSMQ\Parameters" TCPNoDelay 1 -type dword -force -ea 0}
-    sp "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" NetworkThrottlingIndex 0xffffffff -type dword -force -ea 0
-    sp "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" SystemResponsiveness 10 -type dword -force -ea 0
+    sp "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" NetworkThrottlingIndex -1 -type dword -force
+    sp "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" SystemResponsiveness 10 -type dword -force
     sp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" NonBestEffortLimit $Qos -type dword -force -ea 0
     sp "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" LargeSystemCache 0 -type dword -force -ea 0
     sp "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" Size 3 -type dword -force -ea 0
@@ -95,9 +99,9 @@ if ($do -ne 'reset') {
     sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultSendWindow $(4096 * 4096) -type dword -force -ea 0
   }
 
-  " temporarily disable $NICs"; . { $NIC.Keys | foreach { Disable-NetAdapter -InterfaceAlias "$_" -Confirm:$False } }
+  " Temporarily disable: $NICs"; . { $NIC.Keys | foreach { Disable-NetAdapter -InterfaceAlias "$_" -Confirm:$False } }
 
-  " Set-NetAdapterAdvancedProperty"; . { $NIC.Keys |foreach {
+  " Set-NetAdapterAdvancedProperty"; . { $NIC.Keys | where {$Disabled -notcontains $_} | foreach {
   # reset advanced 
     $mac = $(Get-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "NetworkAddress" -ea 0).RegistryValue
     Get-NetAdapter -Name "$_" | Reset-NetAdapterAdvancedProperty -DisplayName "*"
@@ -141,7 +145,7 @@ if ($do -ne 'reset') {
     Set-NetOffloadGlobalSetting -NetworkDirectAcrossIPSubnets Allowed -ea 0
   } 2>'' 1>''
 
-  " Enable-NetAdapterRss"; . { $NIC.Keys |foreach {
+  " Enable-NetAdapterRss"; . { $NIC.Keys | where {$Disabled -notcontains $_} | foreach {
     Set-NetAdapterRss -Name "$_" -NumberOfReceiveQueues 2 -MaxProcessorNumber 4 -Profile "NUMAStatic" -Enabled $true -ea 0
     Enable-NetAdapterQos -Name "$_" -ea 0
     Enable-NetAdapterChecksumOffload -Name "$_" -ea 0
@@ -152,12 +156,14 @@ if ($do -ne 'reset') {
     Disable-NetAdapterEncapsulatedPacketTaskOffload -Name "$_" -ea 0
   } } 2>'' 1>''
 
-  " enable $NICs"; . { $NIC.Keys | foreach { Enable-NetAdapter -InterfaceAlias "$_" -Confirm:$False } }
+  " Re-enable: $NICs"; . {
+    $NIC.Keys | where {$Disabled -notcontains $_} | foreach { Enable-NetAdapter -InterfaceAlias "$_" -Confirm:$False }
+  }
 
-  " netsh tweaks"; . {
+  " Netsh tweaks"; . {
     netsh winsock set autotuning on                                    # Winsock send autotuning
     netsh int udp set global uro=disabled                              # UDP Receive Segment Coalescing Offload - 11 24H2
-    netsh int tcp set heuristics wsh=disabled forcews=enabled          # Window Scaling heuristics
+    netsh int tcp set heuristics wsh=enabled forcews=enabled          # Window Scaling heuristics
     netsh int tcp set supplemental internet minrto=300                 # Controls TCP retransmission timeout. 20 to 300 msec.
     netsh int tcp set supplemental internet icw=10                     # Controls initial congestion window. 2 to 64 MSS
     netsh int tcp set supplemental internet congestionprovider=cubic   # Controls the congestion provider. Def: cubic newreno dctcp
@@ -187,7 +193,7 @@ if ($do -ne 'reset') {
     netsh int ip set global loopbackworkercount=4           # Loopback Worker Count 1 2 4
     netsh int ip set global loopbackexecutionmode=inline    # Loopback Execution Mode adaptive|inline|worker
     netsh int ip set global reassemblylimit=267748640       # Reassembly Limit 267748640|0
-    netsh int ip set global reassemblyoutoforderlimit=8000  # Reassembly Out Of Order Limit 32
+    netsh int ip set global reassemblyoutoforderlimit=1024  # Reassembly Out Of Order Limit 32
     netsh int ip set global sourceroutingbehavior=drop      # Source Routing Behavior drop|dontforward
     netsh int ip set global sourcebasedecmp=enabled         # Source Based ECMP (Equal Cost Multi-Path) 
     netsh int ip set dynamicport tcp start=32769 num=32766  # DynamicPortRange tcp
@@ -201,10 +207,10 @@ if ($do -eq 'reset') {
   write-host " Reset" -fore Yellow
 
   " Reset SG TCPOptimizer tweaks"; . {
-    $NIC.Values |foreach {
-      rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$_" TcpAckFrequency -force -ea 0
-      rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$_" TcpDelAckTicks -force -ea 0
-      rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$_" TcpNoDelay -force -ea 0
+    $NIC | where {$Disabled -notcontains $_.Keys} |foreach { $guid = $_.Values
+      rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpNoDelay -force -ea 0
+      rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpAckFrequency -force -ea 0
+      rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpDelAckTicks -force -ea 0
     }
     if (gi "HKLM:\SOFTWARE\Microsoft\MSMQ") {rp "HKLM:\SOFTWARE\Microsoft\MSMQ\Parameters" TCPNoDelay -force -ea 0}
     rp "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" NetworkThrottlingIndex -force -ea 0
@@ -231,15 +237,17 @@ if ($do -eq 'reset') {
     rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" MaximumReassemblyHeaders -force -ea 0  # 0
   } 2>'' 1>''
   
-  " Temporarily disable $NICs"; . { $NIC.Keys | foreach { Disable-NetAdapter -InterfaceAlias "$_" -Confirm:$False } }
+  " Temporarily disable: $NICs"; . { $NIC.Keys | foreach { Disable-NetAdapter -InterfaceAlias "$_" -Confirm:$False } }
 
-  " Reset-NetAdapterAdvancedProperty"; . { $NIC.Keys |foreach {
+  " Reset-NetAdapterAdvancedProperty"; . { $NIC.Keys | where {$Disabled -notcontains $_} | foreach {
     $mac = $(Get-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "NetworkAddress" -ea 0).RegistryValue
     Get-NetAdapter -Name "$_" | Reset-NetAdapterAdvancedProperty -DisplayName "*"
     if ($mac) { Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "NetworkAddress" -RegistryValue $mac }
   } } 2>'' 1>''
 
-  " Re-enable $NICs"; . { $NIC.Keys | foreach { Enable-NetAdapter -InterfaceAlias "$_" -Confirm:$False } }
+  " Re-enable: $NICs"; . {
+    $NIC.Keys | where {$Disabled -notcontains $_} | foreach { Enable-NetAdapter -InterfaceAlias "$_" -Confirm:$False }
+  }
 
   " Reset netsh"; . {
     netsh int ip set dynamicport tcp start=49152 num=16384;    netsh int ip set dynamicport udp start=49152 num=16384

@@ -10,7 +10,7 @@ write-host @"
   Phone tethering or poor wireless signal? Should select Both
 `n
 "@
-##  2025.11.11 reduce upload speed drop; show network summary
+##  2025.11.11 adjusted QoS strategy; reduce upload speed drop; show network summary
 ##  2025.09.15 tuned buffers
 ##  2025.07.12 refactored and improved dialog (Upload,Download,Both,Cancel)
 ##  2025.02.06 upload fix now works on Home editions too!!!
@@ -52,11 +52,11 @@ $ps = {
   $NICs = ($NIC.Keys | where {$Disabled -notcontains $_}) -join ', '
 
   ## both
-  $NONSACK = 'Enabled'; $RWSCALING = 'Disabled'; $UPTUNE = 'on'; $PACING = 'always'; $MARKING = 'Allowed'; $NONBESTEFFORT = 20
+  $NONSACK = 'Enabled'; $RWSCALING = 'Disabled'; $UPTUNE = 'on'; $PACING = 'always'; $MARKING = 'Allowed'; $NONBESTEFFORT = 25
 
   if ($do -eq 'upload' -or $do -eq 'both') {
     write-host " Upload QoS Enabled" -fore Green; . {
-      if ($do -eq 'upload') { $RWSCALING = 'Normal' }
+      if ($do -eq 'upload') { $RWSCALING = 'Normal'; $UPTUNE = 'on'; $PACING = 'off' }
       ri "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -recurse -force -ea 0
       ni "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -ea 0
       sp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "Application DSCP Marking Request" "$MARKING" -force -ea 0
@@ -74,9 +74,9 @@ $ps = {
       }
       $qos = "Remove-NetQosPolicy -PolicyStore ActiveStore -name * -Confirm:`$false -ea 0"
       $qos+= ";New-NetQosPolicy Bufferbloat_throttle -PolicyStore ActiveStore -NetworkProfile 2 -IPProtocol TCP"
-      $qos+= " -Precedence 254 -DSCPAction 24 -MinBandwidthWeightAction 2" ## 4g experiment: 2
+      $qos+= " -Precedence 254 -DSCPAction 16 -MinBandwidthWeightAction 5" ## 4g experiment: 2
       $qos+= ";New-NetQosPolicy Bufferbloat_priority -PolicyStore ActiveStore -NetworkProfile 2 -Default "
-      $qos+= " -Precedence 252 -DSCPAction 40 -MinBandwidthWeightAction 98" ## 4g experiment: 98
+      $qos+= " -Precedence 252 -DSCPAction 32 -MinBandwidthWeightAction 90" ## 4g experiment: 98
       powershell -nop -c "$qos"
       $sa = New-ScheduledTaskAction -Execute powershell -Argument "-nop -c $qos"; $st = New-ScheduledTaskTrigger -AtStartup
       Register-ScheduledTask -TaskName 'Bufferbloat' -Action $sa -Trigger $st -User 'NT AUTHORITY\SYSTEM' -Force | out-null
@@ -87,7 +87,7 @@ $ps = {
   if ($do -eq 'download' -or $do -eq 'both') {
     write-host " Download Autotuning Disabled" -fore Green; . {
       if ($do -eq 'download') {
-        $NONSACK = 'Disabled'; $RWSCALING = 'Disabled'; $NONBESTEFFORT = 80
+        $NONSACK = 'Disabled'; $RWSCALING = 'Disabled'; $UPTUNE = 'on'; $PACING = 'initialwindow'; $NONBESTEFFORT = 80
         ri "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -recurse -force -ea 0
         rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\QoS" "*" -force -ea 0
         rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" DisableUserTOSSetting -force -ea 0
@@ -214,7 +214,7 @@ $ps = {
       netsh int tcp set global rss=enabled                               # Receive-side scaling
       netsh int tcp set global autotuninglevel=$RWSCALING                # Receive window autotuning
       netsh int tcp set global ecncapability=enabled                     # ECN Capability
-      netsh int tcp set global timestamps=enabled                        # RFC 1323 timestamps, allowed enabled
+      netsh int tcp set global timestamps=allowed                        # RFC 1323 timestamps, allowed enabled
       netsh int tcp set global initialrto=2000                           # Connect (SYN) retransmit time (in ms)
       netsh int tcp set global rsc=disabled                              # Receive segment coalescing
       netsh int tcp set global nonsackrttresiliency=$NONSACK             # Rtt resiliency for non sack clients
@@ -225,7 +225,7 @@ $ps = {
       netsh int tcp set global prr=enabled                               # Proportional Rate Reduction algorithm
       netsh int tcp set global pacingprofile=$PACING                     # TCP pacing, always slowstart initialwindow off
       netsh int ip set global loopbacklargemtu=enable                    # Loopback Large Mtu enable
-      netsh int ip set global loopbackworkercount=4                      # Loopback Worker Count 1 2 4
+      netsh int ip set global loopbackworkercount=2                      # Loopback Worker Count 1 2 4
       netsh int ip set global loopbackexecutionmode=inline               # Loopback Execution Mode, adaptive inline worker
       netsh int ip set global reassemblylimit=267748640                  # Reassembly Limit, 267748640 0
       netsh int ip set global reassemblyoutoforderlimit=128              # Reassembly Out Of Order Limit, 32

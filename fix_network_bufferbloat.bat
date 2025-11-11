@@ -1,7 +1,7 @@
 @(set "0=%~f0" '& set 1=%*) & powershell -nop -c "type -lit $env:0 | out-string | powershell -nop -c -" & exit /b ');.{
 write-host @"
 `n
-  FixNetworkBufferbloat - AveYo, 2025.09.15
+  FixNetworkBufferbloat - AveYo, 2025.11.11
   test on waveform.com/tools/bufferbloat , speed.cloudflare.com , speedtest.net
   You should upgrade to a router with fast cpu and ram having Smart Queue Management
   This script is no SQM, but just a short term network limits configuration!
@@ -10,6 +10,7 @@ write-host @"
   Phone tethering or poor wireless signal? Should select Both
 `n
 "@
+##  2025.11.11 reduce upload speed drop; show network summary
 ##  2025.09.15 tuned buffers
 ##  2025.07.12 refactored and improved dialog (Upload,Download,Both,Cancel)
 ##  2025.02.06 upload fix now works on Home editions too!!!
@@ -51,18 +52,14 @@ $ps = {
   $NICs = ($NIC.Keys | where {$Disabled -notcontains $_}) -join ', '
 
   ## both
-  $NONSACK = 'Enabled'; $RWSCALING = 'Disabled'; $AUTOTUNING = 'Off'; $NONBESTEFFORT = 20
+  $NONSACK = 'Enabled'; $RWSCALING = 'Disabled'; $UPTUNE = 'on'; $PACING = 'always'; $MARKING = 'Allowed'; $NONBESTEFFORT = 20
 
   if ($do -eq 'upload' -or $do -eq 'both') {
-    write-host " Upload QoS ON" -fore Green; . {
-      if ($do -eq 'upload') {
-        $RWSCALING = 'Normal'; $AUTOTUNING = 'Normal'
-        netsh int tcp set global autotuninglevel=Normal
-        rp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "D fix" -force -ea 0
-      }
+    write-host " Upload QoS Enabled" -fore Green; . {
+      if ($do -eq 'upload') { $RWSCALING = 'Normal' }
+      ri "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -recurse -force -ea 0
       ni "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -ea 0
-      rp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "Tcp Autotuning Level" -force -ea 0
-      sp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "Application DSCP Marking Request" "Allowed" -force -ea 0
+      sp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "Application DSCP Marking Request" "$MARKING" -force -ea 0
       sp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "U fix" "1" -force -ea 0
       rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\QoS" -recurse -force -ea 0
       ni "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\QoS" -ea 0
@@ -88,9 +85,9 @@ $ps = {
   }
 
   if ($do -eq 'download' -or $do -eq 'both') {
-    write-host " Download Autotuning OFF" -fore Green; . {
+    write-host " Download Autotuning Disabled" -fore Green; . {
       if ($do -eq 'download') {
-        $NONSACK = 'Disabled'; $RWSCALING = 'Disabled'; $AUTOTUNING = 'Off'; $NONBESTEFFORT = 80
+        $NONSACK = 'Disabled'; $RWSCALING = 'Disabled'; $NONBESTEFFORT = 80
         ri "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -recurse -force -ea 0
         rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\QoS" "*" -force -ea 0
         rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" DisableUserTOSSetting -force -ea 0
@@ -134,8 +131,8 @@ $ps = {
       rp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" "*" -force -ea 0
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" FastCopyReceiveThreshold 1500 -type dword -force -ea 0
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" FastSendDatagramThreshold 1500 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultReceiveWindow $(4096 * 1500) -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultSendWindow $(4096 * 1500) -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultReceiveWindow $(4096 * 2048) -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultSendWindow $(4096 * 2048) -type dword -force -ea 0
     }
 
     " Temporarily disable: $NICs"; . { $NIC.Keys | foreach { Disable-NetAdapter -InterfaceAlias "$_" -Confirm:$False } }
@@ -149,16 +146,17 @@ $ps = {
     # set receive and transmit buffers - less is better for latency, worst for throughput; too less and packet loss increases
       $rx = (Get-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*ReceiveBuffers").NumericParameterMaxValue
       $tx = (Get-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*TransmitBuffers").NumericParameterMaxValue
-      Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*ReceiveBuffers"  -RegistryValue $rx # $rx 1024 320
-      Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*TransmitBuffers" -RegistryValue $tx # $tx 2048 160
+      Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*ReceiveBuffers"  -RegistryValue $rx ## $rx 1024 320
+      Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*TransmitBuffers" -RegistryValue $tx ## $tx 2048 160
     # pci-e adapters in msi-x mode from intel are generally fine with ITR Adaptive - others? not so much
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*InterruptModeration" -RegistryValue 0 # Off 0 On 1
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "ITR" -RegistryValue 0 # Off 0 Adaptive 65535
     # recieve side scaling is always worth it, some adapters feature more queues = cpu threads; not available for wireless
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*RSS" -RegistryValue 1
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*NumRssQueues" -RegistryValue 2
+      Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*RssOnHostVPorts" -RegistryValue 1
     # priority tag
-      Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*PriorityVLANTag" -RegistryValue 1 #1
+      Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*PriorityVLANTag" -RegistryValue 3 ## 0
     # undesirable stuff
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*FlowControl" -RegistryValue 0
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*JumboPacket" -RegistryValue 1514
@@ -200,7 +198,7 @@ $ps = {
     }
 
     " Netsh tweaks"; . {
-      netsh winsock set autotuning off                                   # Winsock send autotuning, on off
+      netsh winsock set autotuning $UPTUNE                               # Winsock send autotuning, on off
       netsh int udp set global uro=disabled                              # UDP Receive Segment Coalescing Offload - 11 24H2
       netsh int tcp set heuristics wsh=disabled forcews=disabled         # Window Scaling heuristics, disabled
       netsh int tcp set supplemental internet minrto=300                 # TCP retransmission timeout, readonly
@@ -216,7 +214,7 @@ $ps = {
       netsh int tcp set global rss=enabled                               # Receive-side scaling
       netsh int tcp set global autotuninglevel=$RWSCALING                # Receive window autotuning
       netsh int tcp set global ecncapability=enabled                     # ECN Capability
-      netsh int tcp set global timestamps=allowed                        # RFC 1323 timestamps, allowed enabled
+      netsh int tcp set global timestamps=enabled                        # RFC 1323 timestamps, allowed enabled
       netsh int tcp set global initialrto=2000                           # Connect (SYN) retransmit time (in ms)
       netsh int tcp set global rsc=disabled                              # Receive segment coalescing
       netsh int tcp set global nonsackrttresiliency=$NONSACK             # Rtt resiliency for non sack clients
@@ -225,8 +223,8 @@ $ps = {
       netsh int tcp set global fastopenfallback=enabled                  # TCP Fast Open fallback, readonly
       netsh int tcp set global hystart=disabled                          # HyStart slow start algorithm
       netsh int tcp set global prr=enabled                               # Proportional Rate Reduction algorithm
-      netsh int tcp set global pacingprofile=always                      # TCP pacing, always slowstart initialwindow off
-      netsh int ip set global loopbacklargemtu=enable                    # Loopback Large Mtu
+      netsh int tcp set global pacingprofile=$PACING                     # TCP pacing, always slowstart initialwindow off
+      netsh int ip set global loopbacklargemtu=enable                    # Loopback Large Mtu enable
       netsh int ip set global loopbackworkercount=4                      # Loopback Worker Count 1 2 4
       netsh int ip set global loopbackexecutionmode=inline               # Loopback Execution Mode, adaptive inline worker
       netsh int ip set global reassemblylimit=267748640                  # Reassembly Limit, 267748640 0
@@ -245,7 +243,7 @@ $ps = {
       function N2($num) { ([BitConverter]::GetBytes($num) |% {'{0:X2}'-f $_}) -join ' ' -replace ' 00 00$','' }
       $pol = "$PWD\Registry.pol"; $head = "50 52 65 67 01 00 00"; ${;} = "00 00 3B 00"
       $txt = "00 5B 00 $(U2 'Software\Policies\Microsoft\Windows\QoS') ${;} $(U2 'Application DSCP Marking Request') ${;} " +
-             "01 00 ${;} $(L2 'Allowed') ${;} $(U2 'Allowed') 00 00 5D " +
+             "01 00 ${;} $(L2 $MARKING) ${;} $(U2 $MARKING) 00 00 5D " +
              "00 5B 00 $(U2 'Software\Policies\Microsoft\Windows\Psched') ${;} $(U2 'NonBestEffortLimit') ${;} " +
              "04 00 ${;} 04 00 ${;} $(N2 $NONBESTEFFORT) 00 00 5D 00"
       [io.file]::writeallbytes($pol, ([byte[]] (-split "$head $txt" -replace '^', '0x')))
@@ -255,7 +253,7 @@ $ps = {
   }
 
   if ($do -eq 'reset') {
-    write-host " Reset" -fore Yellow
+    write-host " Reset (Upload QoS Disabled, Download Autotuning Normal)" -fore Green
 
     " Reset SG TCPOptimizer tweaks"; . {
       $NIC | where {$Disabled -notcontains $_.Keys} |foreach { $guid = $_.Values
@@ -323,23 +321,25 @@ $ps = {
   }
 
   ##  show network configuration
+  function ns: { write-host -fore cyan "`nnetsh" @args; $(netsh @args 2>'' | out-string).Trim("`r","`n") } #
+  function ps: { write-host -fore cyan "`npowershell" @args; $(powershell @args 2>'' | out-string).Trim("`r","`n") } #
+  ns: int ip show interfaces
+  ns: int ipv4 show global
+  ns: int tcp show supplemental
+  ns: int tcp show global
+  ns: winsock show autotuning
+  ps: Get-NetTCPSetting -SettingName internet
+  ps: Get-NetTransportFilter `|ft
+  ps: Get-NetAdapterHardwareInfo #`| fl
+  ps: Get-SmbClientNetworkInterface
+  ps: Get-NetAdapterRSS `|ft
+  ps: Get-NetAdapterChecksumOffload
+  ps: Get-NetAdapterLso
+  ps: Get-NetOffloadGlobalSetting `|fl
+  ps: Get-NetQosPolicy -PolicyStore ActiveStore
+  gi "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
+  gi "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters"
   if ($PAUSE_FOR_SUMMARY -gt 0) {
-    function ps: { write-host -fore cyan "`npowershell" @args; $(powershell @args 2>'' | out-string).Trim("`r","`n") } #
-    function ns: { write-host -fore cyan "`nnetsh" @args; $(netsh @args 2>'' | out-string).Trim("`r","`n") } #
-    ps: Get-NetTransportFilter `|ft
-    ps: Get-NetAdapterHardwareInfo #`| fl
-    ps: Get-SmbClientNetworkInterface
-    ps: Get-NetAdapterRSS `|ft
-    ps: Get-NetAdapterChecksumOffload
-    ps: Get-NetAdapterLso
-    ps: Get-NetOffloadGlobalSetting `|fl
-    ps: Get-NetQosPolicy -PolicyStore ActiveStore
-    ns: int ip show interfaces
-    ns: int ipv4 show global
-    ns: int tcp show supplemental
-    ns: int tcp show global
-    ns: winsock show autotuning
-    ps: Get-NetTCPSetting -SettingName internet
     $ws = new-object -ComObject Wscript.Shell; $ws.Popup("$id $do", 0, "Done", 0x0) >''; $ws = $null
   }
 }

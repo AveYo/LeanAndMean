@@ -107,7 +107,8 @@ function RunAsTI { $id="Defender"; $key='Registry::HKU\S-1-5-21-*\Volatile Envir
  if ($TOGGLE_SMARTSCREENFILTER -ne 0) {
    sp "HKLM:\CurrentControlSet\Control\CI\Policy" 'VerifiedAndReputablePolicyState' 0 -type Dword -force -ea 0
    sp "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" 'SmartScreenEnabled' @('Off','Warn')[$toggle -eq 0] -force -ea 0 
-   gi Registry::HKEY_Users\S-1-5-21*\Software\Microsoft -ea 0 |% {
+   gi Registry::HKEY_Users\S-1-5-21*\Software\Microsoft -ea 0 |
+     ? { $_.Name -notlike '*_Classes*' } |% {
      sp "$($_.PSPath)\Windows\CurrentVersion\AppHost" 'EnableWebContentEvaluation' $toggle_rev -type Dword -force -ea 0
      sp "$($_.PSPath)\Windows\CurrentVersion\AppHost" 'PreventOverride' $toggle_rev -type Dword -force -ea 0
      ni "$($_.PSPath)\Edge\SmartScreenEnabled" -ea 0 > ''
@@ -132,3 +133,4 @@ function RunAsTI { $id="Defender"; $key='Registry::HKU\S-1-5-21-*\Volatile Envir
 
 RunAsTI
 return
+

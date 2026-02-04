@@ -1,7 +1,7 @@
 @(set "0=%~f0" '& set 1=%*) & powershell -nop -c "type -lit $env:0 | out-string | powershell -nop -c -" & exit /b ');.{
 write-host @"
 `n
-  FixNetworkBufferbloat - AveYo, 2025.11.11
+  FixNetworkBufferbloat - AveYo, 2026.02.04
   test on waveform.com/tools/bufferbloat , speed.cloudflare.com , speedtest.net
   You should upgrade to a router with fast cpu and ram having Smart Queue Management
   This script is no SQM, but just a short term network limits configuration!
@@ -115,12 +115,12 @@ $ps = {
       sp "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" SystemResponsiveness 10 -type dword -force
       sp "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" LargeSystemCache 0 -type dword -force -ea 0
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" Size 3 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" DefaultTTL 64 -type dword -force -ea 0
+      #sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" DefaultTTL 64 -type dword -force -ea 0
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" MaxUserPort 65534 -type dword -force -ea 0
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" TcpTimedWaitDelay 30 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" DnsPriority 6 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" HostsPriority 5 -type dword -force -ea 0
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" LocalPriority 4 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" HostsPriority 5 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" DnsPriority 6 -type dword -force -ea 0
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" NetbtPriority 7 -type dword -force -ea 0
     } 2>'' 1>''
 
@@ -129,10 +129,11 @@ $ps = {
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" KeepAliveTime 300000 -type dword -force -ea 0
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" MaximumReassemblyHeaders 0xffff -type dword -force -ea 0
       rp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" "*" -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" FastCopyReceiveThreshold 1500 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" FastSendDatagramThreshold 1500 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultReceiveWindow $(4096 * 2048) -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultSendWindow $(4096 * 2048) -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" FastCopyReceiveThreshold 1300 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" FastSendDatagramThreshold 1300 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultReceiveWindow $(4096 * 256) -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultSendWindow $(4096 * 128) -type dword -force -ea 0
+      # CS2 uses net_option MTU_PacketSize = 1300, RecvBufferSize = 1048576, SendBufferSize = 524288
     }
 
     " Temporarily disable: $NICs"; . { $NIC.Keys | foreach { Disable-NetAdapter -InterfaceAlias "$_" -Confirm:$False } }
@@ -143,7 +144,7 @@ $ps = {
       Get-NetAdapter -Name "$_" | Reset-NetAdapterAdvancedProperty -DisplayName "*"
     # restore custom mac
       if ($mac) { Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "NetworkAddress" -RegistryValue $mac }
-    # set receive and transmit buffers - less is better for latency, worst for throughput; too less and packet loss increases
+    # set receive and transmit buffers - less is better for latency, worst for throughput; too small and packet loss increases
       $rx = (Get-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*ReceiveBuffers").NumericParameterMaxValue
       $tx = (Get-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*TransmitBuffers").NumericParameterMaxValue
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*ReceiveBuffers"  -RegistryValue $rx ## $rx 1024 320
@@ -156,13 +157,14 @@ $ps = {
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*NumRssQueues" -RegistryValue 2
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*RssOnHostVPorts" -RegistryValue 1
     # priority tag
-      Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*PriorityVLANTag" -RegistryValue 3 ## 0
+      Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*PriorityVLANTag" -RegistryValue 0
     # undesirable stuff
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*FlowControl" -RegistryValue 0
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*JumboPacket" -RegistryValue 1514
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*HeaderDataSplit" -RegistryValue 0
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "TcpSegmentation" -RegistryValue 0
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "RxOptimizeThreshold" -RegistryValue 0
+      Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "AdaptiveIFS" -RegistryValue 0
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "WaitAutoNegComplete" -RegistryValue 1
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "PowerSavingMode" -RegistryValue 0
       Set-NetAdapterAdvancedProperty -Name "$_" -RegistryKeyword "*SelectiveSuspend" -RegistryValue 0
@@ -224,11 +226,11 @@ $ps = {
       netsh int tcp set global hystart=disabled                          # HyStart slow start algorithm
       netsh int tcp set global prr=enabled                               # Proportional Rate Reduction algorithm
       netsh int tcp set global pacingprofile=$PACING                     # TCP pacing, always slowstart initialwindow off
-      netsh int ip set global loopbacklargemtu=enable                    # Loopback Large Mtu enable
+      netsh int ip set global loopbacklargemtu=disable                   # Loopback Large Mtu enable
       netsh int ip set global loopbackworkercount=2                      # Loopback Worker Count 1 2 4
       netsh int ip set global loopbackexecutionmode=inline               # Loopback Execution Mode, adaptive inline worker
       netsh int ip set global reassemblylimit=267748640                  # Reassembly Limit, 267748640 0
-      netsh int ip set global reassemblyoutoforderlimit=128              # Reassembly Out Of Order Limit, 32
+      netsh int ip set global reassemblyoutoforderlimit=1300             # Reassembly Out Of Order Limit, 32
       netsh int ip set global sourceroutingbehavior=drop                 # Source Routing Behavior, drop dontforward
       netsh int ip set global sourcebasedecmp=enabled                    # Source Based ECMP (Equal Cost Multi-Path)
       netsh int ip set dynamicport tcp start=32769 num=32766             # DynamicPortRange tcp

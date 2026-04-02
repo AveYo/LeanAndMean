@@ -1,7 +1,7 @@
 @(set "0=%~f0" '& set 1=%*) & powershell -nop -c "type -lit $env:0 | out-string | powershell -nop -c -" & exit /b ');.{
 write-host @"
 `n
-  FixNetworkBufferbloat - AveYo, 2026.02.04
+  FixNetworkBufferbloat - AveYo, 2026.04.01
   test on waveform.com/tools/bufferbloat , speed.cloudflare.com , speedtest.net
   You should upgrade to a router with fast cpu and ram having Smart Queue Management
   This script is no SQM, but just a short term network limits configuration!
@@ -18,7 +18,7 @@ write-host @"
 ##  2024.11.19 good improvements even on shitty 4G hotspot, do a reset then try upload fix first
 
 $id = 'FixNetworkBufferbloat'
-$cl = ''; $do = @{1 = 'upload'; 2 = 'download'; 3 = 'both'; 4 = 'reset'; 5 = 'cancel'}
+$cl = ''; $do = @{1 = 'upload'; 2 = 'download'; 3 = 'both'; 4 = 'just-tweaks'; 5 = 'reset'; 6 = 'cancel'}
 $f0 = ($env:0,"$pwd\.pasted")[!$env:0]
 foreach ($a in $do.Values) { if ("$(split-path $f0 -leaf) $env:1" -like "*$a*") {$cl = $a} }
 function Choices($all, $def, $n='Options', [byte]$sz=12, $bc='MidnightBlue', $fc='Snow') {
@@ -32,17 +32,19 @@ function Choices($all, $def, $n='Options', [byte]$sz=12, $bc='MidnightBlue', $fc
 }
 $UF = (" ",[char]0x2713)[(gp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "U fix" -ea 0) -ne $null]
 $DF = (" ",[char]0x2713)[(gp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "D fix" -ea 0) -ne $null]
-if ($cl -eq '') { $c = Choices "&Upload $UF, &Download $DF, &Both, &Reset, &Cancel" 5 "$id"; $cl = $do[$c] }
+$JF = (" ",[char]0x2713)[(gp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "J fix" -ea 0) -ne $null]
+if ($cl -eq '') { $c = Choices "&Upload $UF, &Download $DF, &Both, &Just-Tweaks $JF, &Reset, &Cancel" 6 "$id"; $cl = $do[$c] }
 if ($cl -eq 'cancel') { return }
 
 $ps = {
-  $PAUSE_FOR_SUMMARY = 0
+  $PAUSE_FOR_SUMMARY = 1
   pushd -lit $(split-path $args[0]); $do = $args[1]; $id = $args[2]; [Console]::Title = "$id $do"
   write-host
 
   ##  current state
-  $UF = ($false,$true)[(gp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "U fix" -ea 0) -ne $null]
-  $DF = ($false,$true)[(gp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "D fix" -ea 0) -ne $null]
+#   $UF = ($false,$true)[(gp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "U fix" -ea 0) -ne $null]
+#   $DF = ($false,$true)[(gp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "D fix" -ea 0) -ne $null]
+#   $JF = ($false,$true)[(gp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "J fix" -ea 0) -ne $null]
 
   $NIC = @(); $Disabled = @()
   foreach ($a in Get-NetAdapter -Physical | Select-Object DeviceID,Name,InterfaceAdminStatus) {
@@ -66,6 +68,7 @@ $ps = {
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\QoS" "Do not use NLA" 1 -type dword -force -ea 0
       ni "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -ea 0
       sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" DisableUserTOSSetting 0 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" DefaultTOS 46 -type dword -force -ea 0
       ri "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" -recurse -force -ea 0
       ni "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" -ea 0
       sp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" NonBestEffortLimit $NONBESTEFFORT -type dword -force -ea 0
@@ -102,39 +105,60 @@ $ps = {
     } 2>'' 1>''
   }
 
-  if ($do -ne 'reset') {
-    " SG TCPOptimizer tweaks"; . {
-      ni "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -ea 0
-      $NIC | where {$Disabled -notcontains $_.Keys} |foreach { $guid = $_.Values
-        sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpNoDelay 1 -type dword -force -ea 0
-        sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpAckFrequency 2 -type dword -force -ea 0
-        rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpDelAckTicks -force -ea 0
-      }
-      if (gi "HKLM:\SOFTWARE\Microsoft\MSMQ") {sp "HKLM:\SOFTWARE\Microsoft\MSMQ\Parameters" TCPNoDelay 1 -type dword -force}
-      sp "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" NetworkThrottlingIndex -1 -type dword -force
-      sp "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" SystemResponsiveness 10 -type dword -force
-      sp "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" LargeSystemCache 0 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" Size 3 -type dword -force -ea 0
-      #sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" DefaultTTL 64 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" MaxUserPort 65534 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" TcpTimedWaitDelay 30 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" LocalPriority 4 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" HostsPriority 5 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" DnsPriority 6 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" NetbtPriority 7 -type dword -force -ea 0
+  if ($do -eq 'just-tweaks') {
+    write-host " Just Tweaks" -fore Green; . {
+      $NONSACK = 'Enabled'; $RWSCALING = 'Normal'; $UPTUNE = 'on'; $PACING = 'initialwindow'
+      ri "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -recurse -force -ea 0
+      rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\QoS" "*" -force -ea 0
+      rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" DisableUserTOSSetting -force -ea 0
+      ri "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" -recurse -force -ea 0
+      "ActiveStore","$env:computername","GPO:$env:computername" |foreach {
+        Get-NetQosPolicy -PolicyStore $_ -ea 0 | Remove-NetQosPolicy -Confirm:$False -ea 0 }
+      Unregister-ScheduledTask -TaskName 'Bufferbloat' -confirm:$false -ea 0
+      ni "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -ea 0
+      sp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "J fix" "1" -force -ea 0
+      rp "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" "Tcp Autotuning Level" -force -ea 0
     } 2>'' 1>''
+  }
 
-    " Other registry tweaks"; . {
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" StrictTimeWaitSeqCheck 1 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" KeepAliveTime 300000 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" MaximumReassemblyHeaders 0xffff -type dword -force -ea 0
-      rp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" "*" -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" FastCopyReceiveThreshold 1300 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" FastSendDatagramThreshold 1300 -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultReceiveWindow $(4096 * 256) -type dword -force -ea 0
-      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultSendWindow $(4096 * 128) -type dword -force -ea 0
-      # CS2 uses net_option MTU_PacketSize = 1300, RecvBufferSize = 1048576, SendBufferSize = 524288
-    }
+  if ($do -ne 'reset') {
+    " Netsh tweaks"; . {
+      netsh winsock set autotuning $UPTUNE                               # Winsock send autotuning, on off
+      netsh int udp set global uro=disabled                              # UDP Receive Segment Coalescing Offload - 11 24H2
+      netsh int tcp set heuristics wsh=disabled forcews=disabled         # Window Scaling heuristics, disabled
+      netsh int tcp set supplemental internet minrto=300                 # TCP retransmission timeout, readonly
+      netsh int tcp set supplemental internet icw=10                     # Initial congestion window, readonly
+      netsh int tcp set supplemental internet congestionprovider=ctcp    # Congestion provider, cubic newreno dctcp
+      netsh int tcp set supplemental internet enablecwndrestart=enabled  # Congestion window restart, enabled
+      netsh int tcp set supplemental internet delayedacktimeout=40       # TCP delayed ack timeout, readonly
+      netsh int tcp set supplemental internet delayedackfrequency=2      # TCP delayed ack frequency, readonly
+      netsh int tcp set supplemental internet rack=enabled               # RACK time based recovery, readonly
+      netsh int tcp set supplemental internet taillossprobe=enabled      # Tail Loss Probe, readonly
+      netsh int tcp set security mpp=disabled                            # Memory pressure protection (SYN flood drop)
+      netsh int tcp set security profiles=disabled                       # Profiles protection (private vs domain)
+      netsh int tcp set global rss=enabled                               # Receive-side scaling *
+      netsh int tcp set global autotuninglevel=$RWSCALING                # Receive window autotuning
+      netsh int tcp set global ecncapability=enabled                     # ECN Capability
+      netsh int tcp set global timestamps=allowed                        # RFC 1323 timestamps, allowed enabled
+      netsh int tcp set global initialrto=2000                           # Connect (SYN) retransmit time (in ms)
+      netsh int tcp set global rsc=disabled                              # Receive segment coalescing
+      netsh int tcp set global nonsackrttresiliency=$NONSACK             # Rtt resiliency for non sack clients
+      netsh int tcp set global maxsynretransmissions=4                   # Connect retry attempts using SYN packets
+      netsh int tcp set global fastopen=enabled                          # TCP Fast Open, readonly
+      netsh int tcp set global fastopenfallback=enabled                  # TCP Fast Open fallback, readonly
+      netsh int tcp set global hystart=disabled                          # HyStart slow start algorithm
+      netsh int tcp set global prr=enabled                               # Proportional Rate Reduction algorithm
+      netsh int tcp set global pacingprofile=$PACING                     # TCP pacing, always slowstart initialwindow off
+      netsh int ip set global loopbacklargemtu=disable                   # Loopback Large Mtu enable
+      netsh int ip set global loopbackworkercount=2                      # Loopback Worker Count 1 2 4
+      netsh int ip set global loopbackexecutionmode=inline               # Loopback Execution Mode, adaptive inline worker
+      netsh int ip set global reassemblylimit=267748640                  # Reassembly Limit, 267748640 0
+      netsh int ip set global reassemblyoutoforderlimit=1300             # Reassembly Out Of Order Limit, 32
+      netsh int ip set global sourceroutingbehavior=drop                 # Source Routing Behavior, drop dontforward
+      netsh int ip set global sourcebasedecmp=enabled                    # Source Based ECMP (Equal Cost Multi-Path)
+      netsh int ip set dynamicport tcp start=32769 num=32766             # DynamicPortRange tcp
+      netsh int ip set dynamicport udp start=32769 num=32766             # DynamicPortRange udp
+    } 2>'' 1>''
 
     " Temporarily disable: $NICs"; . { $NIC.Keys | foreach { Disable-NetAdapter -InterfaceAlias "$_" -Confirm:$False } }
 
@@ -177,7 +201,7 @@ $ps = {
     " Set-NetOffloadGlobalSetting"; . {
       Set-NetOffloadGlobalSetting -TaskOffload Enabled
       Set-NetOffloadGlobalSetting -Chimney Disabled
-      Set-NetOffloadGlobalSetting -PacketCoalescingFilter Enabled
+      Set-NetOffloadGlobalSetting -PacketCoalescingFilter Disabled
       Set-NetOffloadGlobalSetting -ReceiveSegmentCoalescing Disabled
       Set-NetOffloadGlobalSetting -ReceiveSideScaling Enabled
       Set-NetOffloadGlobalSetting -NetworkDirect Enabled
@@ -195,47 +219,42 @@ $ps = {
       Disable-NetAdapterEncapsulatedPacketTaskOffload -Name "$_" -ea 0
     } } 2>'' 1>''
 
+    " SG TCPOptimizer tweaks"; . {
+      ni "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -ea 0
+      $NIC | where {$Disabled -notcontains $_.Keys} |foreach { $guid = $_.Values
+        sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpNoDelay 1 -type dword -force -ea 0
+        sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpAckFrequency 2 -type dword -force -ea 0
+        rp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid" TcpDelAckTicks -force -ea 0
+      }
+      if (gi "HKLM:\SOFTWARE\Microsoft\MSMQ") {sp "HKLM:\SOFTWARE\Microsoft\MSMQ\Parameters" TCPNoDelay 1 -type dword -force}
+      sp "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" NetworkThrottlingIndex -1 -type dword -force
+      sp "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" SystemResponsiveness 10 -type dword -force
+      sp "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" LargeSystemCache 0 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" Size 3 -type dword -force -ea 0
+      #sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" DefaultTTL 64 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" MaxUserPort 65534 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" TcpTimedWaitDelay 30 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" LocalPriority 4 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" HostsPriority 5 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" DnsPriority 6 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider" NetbtPriority 7 -type dword -force -ea 0
+    } 2>'' 1>''
+
+    " Other registry tweaks"; . {
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" StrictTimeWaitSeqCheck 1 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" KeepAliveTime 300000 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" MaximumReassemblyHeaders 0xffff -type dword -force -ea 0
+      rp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" "*" -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" FastCopyReceiveThreshold 1300 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" FastSendDatagramThreshold 1300 -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultReceiveWindow $(4096 * 256) -type dword -force -ea 0
+      sp "HKLM:\SYSTEM\CurrentControlSet\Services\AFD\Parameters" DefaultSendWindow $(4096 * 128) -type dword -force -ea 0
+      # CS2 uses net_option MTU_PacketSize = 1300, RecvBufferSize = 1048576, SendBufferSize = 524288
+    }
+
     " Re-enable: $NICs"; . {
       $NIC.Keys | where {$Disabled -notcontains $_} | foreach { Enable-NetAdapter -InterfaceAlias "$_" -Confirm:$False }
     }
-
-    " Netsh tweaks"; . {
-      netsh winsock set autotuning $UPTUNE                               # Winsock send autotuning, on off
-      netsh int udp set global uro=disabled                              # UDP Receive Segment Coalescing Offload - 11 24H2
-      netsh int tcp set heuristics wsh=disabled forcews=disabled         # Window Scaling heuristics, disabled
-      netsh int tcp set supplemental internet minrto=300                 # TCP retransmission timeout, readonly
-      netsh int tcp set supplemental internet icw=10                     # Initial congestion window, readonly
-      netsh int tcp set supplemental internet congestionprovider=ctcp    # Congestion provider, cubic newreno dctcp
-      netsh int tcp set supplemental internet enablecwndrestart=enabled  # Congestion window restart, enabled
-      netsh int tcp set supplemental internet delayedacktimeout=40       # TCP delayed ack timeout, readonly
-      netsh int tcp set supplemental internet delayedackfrequency=2      # TCP delayed ack frequency, readonly
-      netsh int tcp set supplemental internet rack=enabled               # RACK time based recovery, readonly
-      netsh int tcp set supplemental internet taillossprobe=enabled      # Tail Loss Probe, readonly
-      netsh int tcp set security mpp=disabled                            # Memory pressure protection (SYN flood drop)
-      netsh int tcp set security profiles=disabled                       # Profiles protection (private vs domain)
-      netsh int tcp set global rss=enabled                               # Receive-side scaling
-      netsh int tcp set global autotuninglevel=$RWSCALING                # Receive window autotuning
-      netsh int tcp set global ecncapability=enabled                     # ECN Capability
-      netsh int tcp set global timestamps=allowed                        # RFC 1323 timestamps, allowed enabled
-      netsh int tcp set global initialrto=2000                           # Connect (SYN) retransmit time (in ms)
-      netsh int tcp set global rsc=disabled                              # Receive segment coalescing
-      netsh int tcp set global nonsackrttresiliency=$NONSACK             # Rtt resiliency for non sack clients
-      netsh int tcp set global maxsynretransmissions=4                   # Connect retry attempts using SYN packets
-      netsh int tcp set global fastopen=enabled                          # TCP Fast Open, readonly
-      netsh int tcp set global fastopenfallback=enabled                  # TCP Fast Open fallback, readonly
-      netsh int tcp set global hystart=disabled                          # HyStart slow start algorithm
-      netsh int tcp set global prr=enabled                               # Proportional Rate Reduction algorithm
-      netsh int tcp set global pacingprofile=$PACING                     # TCP pacing, always slowstart initialwindow off
-      netsh int ip set global loopbacklargemtu=disable                   # Loopback Large Mtu enable
-      netsh int ip set global loopbackworkercount=2                      # Loopback Worker Count 1 2 4
-      netsh int ip set global loopbackexecutionmode=inline               # Loopback Execution Mode, adaptive inline worker
-      netsh int ip set global reassemblylimit=267748640                  # Reassembly Limit, 267748640 0
-      netsh int ip set global reassemblyoutoforderlimit=1300             # Reassembly Out Of Order Limit, 32
-      netsh int ip set global sourceroutingbehavior=drop                 # Source Routing Behavior, drop dontforward
-      netsh int ip set global sourcebasedecmp=enabled                    # Source Based ECMP (Equal Cost Multi-Path)
-      netsh int ip set dynamicport tcp start=32769 num=32766             # DynamicPortRange tcp
-      netsh int ip set dynamicport udp start=32769 num=32766             # DynamicPortRange udp
-    } 2>'' 1>''
 
     " Group Policy refresh"; . {
       pushd "$env:Systemroot\System32\GroupPolicy\Machine"
@@ -256,6 +275,14 @@ $ps = {
 
   if ($do -eq 'reset') {
     write-host " Reset (Upload QoS Disabled, Download Autotuning Normal)" -fore Green
+
+    " Reset netsh"; . {
+      netsh int ip set dynamicport tcp start=49152 num=16384;    netsh int ip set dynamicport udp start=49152 num=16384
+      netsh int ip set global reassemblyoutoforderlimit=32;      netsh int ip set global reassemblylimit=133793216
+      netsh int ip set global sourceroutingbehavior=dontforward; netsh int ip set global sourcebasedecmp=disabled
+      netsh int ip set global loopbackexecutionmode=adaptive;    netsh int ip set global loopbackworkercount=2
+      netsh int ip reset; netsh int ipv4 reset; netsh int tcp reset; netsh int udp reset; netsh winsock reset
+    } 2>'' 1>''
 
     " Reset SG TCPOptimizer tweaks"; . {
       $NIC | where {$Disabled -notcontains $_.Keys} |foreach { $guid = $_.Values
@@ -295,14 +322,6 @@ $ps = {
     " Re-enable: $NICs"; . {
       $NIC.Keys | where {$Disabled -notcontains $_} | foreach { Enable-NetAdapter -InterfaceAlias "$_" -Confirm:$False }
     }
-
-    " Reset netsh"; . {
-      netsh int ip set dynamicport tcp start=49152 num=16384;    netsh int ip set dynamicport udp start=49152 num=16384
-      netsh int ip set global reassemblyoutoforderlimit=32;      netsh int ip set global reassemblylimit=133793216
-      netsh int ip set global sourceroutingbehavior=dontforward; netsh int ip set global sourcebasedecmp=disabled
-      netsh int ip set global loopbackexecutionmode=adaptive;    netsh int ip set global loopbackworkercount=2
-      netsh int ip reset; netsh int ipv4 reset; netsh int tcp reset; netsh int udp reset; netsh winsock reset
-    } 2>'' 1>''
 
     " Reset QoS"; . {
       ri "HKLM:\SOFTWARE\Policies\Microsoft\Windows\QoS" -recurse -force -ea 0
